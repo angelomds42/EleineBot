@@ -16,8 +16,8 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/localization"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/localization"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 func getStickerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -136,7 +136,7 @@ func generateStickerSetName(ctx context.Context, b *bot.Bot, update *models.Upda
 	if len(nameTitle) > 35 {
 		nameTitle = nameTitle[:35]
 	}
-	stickerSetTitle := fmt.Sprintf("%s's SmudgeLord", nameTitle)
+	stickerSetTitle := fmt.Sprintf("%s's Eleine", nameTitle)
 	stickerSetShortName := shortNamePrefix + shortNameSuffix
 
 	for i := 0; checkStickerSetCount(ctx, b, stickerSetShortName); i++ {

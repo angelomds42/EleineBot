@@ -1,4 +1,4 @@
-module github.com/ruizlenato/smudgelord
+module github.com/angelomds42/EleineBot
 
 go 1.23.5
 

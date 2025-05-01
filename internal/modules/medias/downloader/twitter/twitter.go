@@ -13,9 +13,9 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/database/cache"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/database/cache"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 const (
@@ -116,14 +116,14 @@ func (h *Handler) processTwitterAPI(twitterData *TwitterAPIData) []models.InputM
 			if mediasEntities[result.index].Type == "photo" {
 				mediaItem = &models.InputMediaPhoto{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 					MediaAttachment:       bytes.NewBuffer(result.media.File),
 					ShowCaptionAboveMedia: quoted,
 				}
 			} else {
 				mediaItem = &models.InputMediaVideo{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 					ShowCaptionAboveMedia: quoted,
 					Width:                 (mediasEntities)[result.index].OriginalInfo.Width,
 					Height:                (mediasEntities)[result.index].OriginalInfo.Height,
@@ -139,7 +139,7 @@ func (h *Handler) processTwitterAPI(twitterData *TwitterAPIData) []models.InputM
 					}
 					mediaItem.(*models.InputMediaVideo).Thumbnail = &models.InputFileUpload{
 						Filename: utils.SanitizeString(
-							fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+							fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 						Data: bytes.NewBuffer(thumbnail),
 					}
 				}
@@ -421,13 +421,13 @@ func (h *Handler) processFxTwitterAPI(twitterData *FxTwitterAPIData) ([]models.I
 			if twitterData.Tweet.Media.All[result.index].Type != "video" {
 				mediaItem = &models.InputMediaPhoto{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 					MediaAttachment: bytes.NewBuffer(result.media.File),
 				}
 			} else {
 				mediaItem = &models.InputMediaVideo{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 					Width:             twitterData.Tweet.Media.All[result.index].Width,
 					Height:            twitterData.Tweet.Media.All[result.index].Height,
 					SupportsStreaming: true,
@@ -442,7 +442,7 @@ func (h *Handler) processFxTwitterAPI(twitterData *FxTwitterAPIData) ([]models.I
 					}
 					mediaItem.(*models.InputMediaVideo).Thumbnail = &models.InputFileUpload{
 						Filename: utils.SanitizeString(
-							fmt.Sprintf("SmudgeLord-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
+							fmt.Sprintf("Eleine-Twitter_%d_%s_%s", result.index, h.username, h.postID)),
 						Data: bytes.NewBuffer(thumbnail),
 					}
 				}

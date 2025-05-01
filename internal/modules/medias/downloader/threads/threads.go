@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/instagram"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/instagram"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 type Handler struct {
@@ -185,13 +185,13 @@ func (h *Handler) handleCarousel(post Post) []models.InputMedia {
 			if (*post.CarouselMedia)[result.index].VideoVersions == nil {
 				mediaItem = &models.InputMediaPhoto{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Threads_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Threads_%d_%s_%s", result.index, h.username, h.postID)),
 					MediaAttachment: bytes.NewBuffer(result.media.File),
 				}
 			} else {
 				mediaItem = &models.InputMediaVideo{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Threads_%d_%s_%s", result.index, h.username, h.postID)),
+						fmt.Sprintf("Eleine-Threads_%d_%s_%s", result.index, h.username, h.postID)),
 					Width:             (*post.CarouselMedia)[result.index].OriginalWidth,
 					Height:            (*post.CarouselMedia)[result.index].OriginalHeight,
 					SupportsStreaming: true,
@@ -200,7 +200,7 @@ func (h *Handler) handleCarousel(post Post) []models.InputMedia {
 				if result.media.Thumbnail != nil {
 					mediaItem.(*models.InputMediaVideo).Thumbnail = &models.InputFileUpload{
 						Filename: utils.SanitizeString(
-							fmt.Sprintf("SmudgeLord-Threads_%d_%s_%s", result.index, h.username, h.postID)),
+							fmt.Sprintf("Eleine-Threads_%d_%s_%s", result.index, h.username, h.postID)),
 						Data: bytes.NewBuffer(result.media.Thumbnail),
 					}
 				}
@@ -213,7 +213,7 @@ func (h *Handler) handleCarousel(post Post) []models.InputMedia {
 }
 
 func (h *Handler) handleVideo(post Post) []models.InputMedia {
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Threads_%s_%s", h.username, h.postID))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-Threads_%s_%s", h.username, h.postID))
 	file, err := downloader.FetchBytesFromURL(post.VideoVersions[0].URL)
 	if err != nil {
 		slog.Error("Failed to download video",
@@ -251,7 +251,7 @@ func (h *Handler) handleVideo(post Post) []models.InputMedia {
 }
 
 func (h *Handler) handleImage(post Post) []models.InputMedia {
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Threads_%s_%s", h.username, h.postID))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-Threads_%s_%s", h.username, h.postID))
 	file, err := downloader.FetchBytesFromURL(post.ImageVersions.Candidates[0].URL)
 	if err != nil {
 		slog.Error("Failed to download image",

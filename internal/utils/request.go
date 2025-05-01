@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ruizlenato/smudgelord/internal/config"
+	"github.com/angelomds42/EleineBot/internal/config"
 )
 
 type HTTPCaller struct {

@@ -8,7 +8,7 @@ language-changed = O idioma foi alterado com sucesso.
 measurement-unit = m
 start-button = Inciar uma conversa.
 start-message =
-    Olá <b>{ $userFirstName }</b> — Eu sou o <b>{ $botName }</b>, um bot com alguns comandos úteis e divertidos para você.
+    Olá <b>{ $userFirstName }</b> — Eu sou a <b>{ $botName }</b>, um bot com alguns comandos úteis e divertidos para você.
 
     <b>Código Fonte:</b> <a href='github.com/ruizlenato/smudgelord'>GitHub</a>
 start-message-group =
@@ -23,26 +23,26 @@ about-your-data-button = Sobre seus dados
 back-button = ↩️ Voltar
 denied-button-alert = Este botão não é para você.
 privacy-policy-button = 🔒 Política de Privacidade
-privacy-policy-group = Para acessar a política de privacidade do SmudgeLord, <b>clique no botão abaixo.</b>
+privacy-policy-group = Para acessar a política de privacidade da Eleine, <b>clique no botão abaixo.</b>
 about =
-    <b>— SmudgeLord</b>
-    SmudgeLord (Smudge The Cat) é um gato que se tornou um famoso meme na Internet. A sua veio de uma imagem onde aparece ao lado de uma mulher gritando com raiva.
+    <b>— Eleine</b>
+    Sou um fork do @SmudgeLordBot com recursos adicionais.
 
-    <b>- Código Fonte:</b> <a href='https://github.com/ruizlenato/SmudgeLord'>GitHub</a>
+    <b>- Código Fonte Fork:</b> <a href='https://github.com/angelomds42/EleineBot'>Github</a>
+    <b>- Desenvolvedor:</b> @Knotzy07x
+
+    <b>- Código Fonte Base:</b> <a href='https://github.com/ruizlenato/SmudgeLord'>Github</a>
     <b>- Desenvolvedor:</b> @ruizlenato
-    <i>Este projeto não tem afiliação com Smudge The Cat. Estou apenas usando seu nome e imagem porque sou um grande fã.</i>
 
-    <b>💸 Contribua: Ajude a manter o bot no ar com uma doação via PIX ou PayPal.</b>
+    <b>💸 Contribua como o projeto original: Este fork existe graças ao trabalho do ruizlenato. Contribua para mantê-lo ativo!</b>
     • Chave Pix e Email do PayPal: <code>ruizlenato@proton.me</code>
 
     Se preferir contribuir de outra forma, como com cartão de crédito ou débito, toque no botão abaixo para ser redirecionado ao link de doação no Ko-Fi.
 privacy-policy-private =
-    <b>Política de Privacidade do SmudgeLord.</b>
+    <b>Política de Privacidade da Eleine.</b>
 
-    O SmudgeLord foi criado com o compromisso de garantir transparência e confiança aos seus usuários. 
+    O Eleine foi criado com o compromisso de garantir transparência e confiança aos seus usuários. 
     Agradeço pela sua confiança e estou dedicado a proteger sua privacidade.
-
-    Esta política de privacidade pode ser atualizada, e quaisquer alterações serão informadas através do Canal do SmudgeLord - @SmudgeLordChannel.
 about-your-data = 
     <b>Sobre seus dados.</b>
 
@@ -50,12 +50,12 @@ about-your-data =
     O bot coleta apenas informações essenciais para proporcionar uma experiência personalizada.
     <b>Os dados coletados incluem:</b>
     - <b>Informações do usuário no Telegram:</b> ID do usuário, primeiro nome, idioma e nome de usuário.
-    - <b>Suas configurações no SmudgeLord:</b> Configurações que você configurou no bot, como seu idioma e nome de usuário do LastFM, tudo fornecido pelo próprio usuário.
+    - <b>Suas configurações na Eleine:</b> Configurações que você configurou no bot, como seu idioma e nome de usuário do LastFM, tudo fornecido pelo próprio usuário.
 
     <b>2. Uso de dados.</b>
     Os dados coletados pelo bot são utilizados exclusivamente para aprimorar a experiência do usuário e prestar um serviço mais eficiente.
     - <b>Suas informações de usuário do Telegram</b> são usadas para identificação e comunicação com o usuário.
-    - <b>Suas configurações no SmudgeLord</b> são usadas para integrar e personalizar os serviços do bot.
+    - <b>Suas configurações na Eleine</b> são usadas para integrar e personalizar os serviços do bot.
 
     <b>3. Compartilhamento de Dados.</b>
     Os dados coletados pelo bot não são compartilhados com terceiros, exceto quando exigido por lei. 
@@ -154,7 +154,7 @@ medias-help =
     <b>Media Downloader</b>
 
     Ao compartilhar links no Telegram, alguns sites não exibem uma pré-visualização de imagem ou vídeo. 
-    Esse módulo faz com que o Smudge detecte automaticamente os links dos sites suportados e envie os vídeos e imagens que estão presentes no mesmo.
+    Esse módulo faz com que a Eleine detecte automaticamente os links dos sites suportados e envie os vídeos e imagens que estão presentes no mesmo.
 
     <b>Sites atualmente suportados:</b> <i>Instagram</i>, <i>TikTok</i>, <i>Twitter/X</i>, <i>Threads</i>, <i>Reddit</i>, <i>Bluesky</i>, <i>YouTube Shorts</i> e <i>Xiaohongshu (Rednote)</i>.
 
@@ -202,7 +202,7 @@ misc-help =
     <b>— Comandos:</b>
     <b>/clima (cidade):</b> Exibe o clima atual da cidade especifica.
     <b>/tr (origem)-(destino) (texto):</b> Traduz um texto do idioma de origem para o idioma de destino especificado.
-    <i>Caso você não especifique o idioma de origem, o Smudge irá identificar automaticamente.</i>
+    <i>Caso você não especifique o idioma de origem, a Eleine irá identificar automaticamente.</i>
         
 
     <b>Observação:</b>

@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/angelomds42/EleineBot/internal/config"
+	"github.com/angelomds42/EleineBot/internal/database"
+	"github.com/angelomds42/EleineBot/internal/database/cache"
+	"github.com/angelomds42/EleineBot/internal/localization"
 	"github.com/go-telegram/bot"
-	"github.com/ruizlenato/smudgelord/internal/config"
-	"github.com/ruizlenato/smudgelord/internal/database"
-	"github.com/ruizlenato/smudgelord/internal/database/cache"
-	"github.com/ruizlenato/smudgelord/internal/localization"
 )
 
 func InitializeServices(b *bot.Bot, ctx context.Context) error {

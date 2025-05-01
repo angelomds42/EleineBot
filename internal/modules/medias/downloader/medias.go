@@ -21,8 +21,8 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/grafov/m3u8"
 
-	"github.com/ruizlenato/smudgelord/internal/database/cache"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/database/cache"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 var GenericHeaders = map[string]string{
@@ -198,7 +198,7 @@ func mergeSegments(segmentFiles []string) (*os.File, error) {
 	defer listFile.Close()
 	defer os.Remove(listFile.Name())
 
-	file, err := os.CreateTemp("", "SmudgeLord*.mp4")
+	file, err := os.CreateTemp("", "Eleine*.mp4")
 	if err != nil {
 		return nil, err
 	}

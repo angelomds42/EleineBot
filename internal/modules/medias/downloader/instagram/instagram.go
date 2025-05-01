@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 type Handler struct {
@@ -270,7 +270,7 @@ func (h *Handler) getGQLData() InstagramData {
 }
 
 func (h *Handler) handleVideo(data *ShortcodeMedia) []models.InputMedia {
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Instagram_%s_%s", h.username, h.postID))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-Instagram_%s_%s", h.username, h.postID))
 	file, err := downloader.FetchBytesFromURL(data.VideoURL)
 	if err != nil {
 		slog.Error("Failed to download video",
@@ -308,7 +308,7 @@ func (h *Handler) handleVideo(data *ShortcodeMedia) []models.InputMedia {
 }
 
 func (h *Handler) handleImage(data *ShortcodeMedia) []models.InputMedia {
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Instagram_%s_%s", h.username, h.postID))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-Instagram_%s_%s", h.username, h.postID))
 	file, err := downloader.FetchBytesFromURL(data.DisplayURL)
 	if err != nil {
 		slog.Error("Failed to download image",
@@ -350,7 +350,7 @@ func (h *Handler) handleSidecar(data *ShortcodeMedia) []models.InputMedia {
 			continue
 		}
 		if result.media.File != nil {
-			filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Instagram_%d_%s_%s", result.index, h.username, h.postID))
+			filename := utils.SanitizeString(fmt.Sprintf("Eleine-Instagram_%d_%s_%s", result.index, h.username, h.postID))
 			var mediaItem models.InputMedia
 			if !data.EdgeSidecarToChildren.Edges[result.index].Node.IsVideo {
 				mediaItem = &models.InputMediaPhoto{

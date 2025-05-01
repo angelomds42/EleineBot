@@ -8,7 +8,7 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/database"
+	"github.com/angelomds42/EleineBot/internal/database"
 )
 
 var DisableableCommands []string

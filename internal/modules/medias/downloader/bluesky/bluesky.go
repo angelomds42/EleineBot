@@ -13,8 +13,8 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/grafov/m3u8"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 type Handler struct {
@@ -215,10 +215,10 @@ func (h *Handler) handleVideo(data BlueskyData) []models.InputMedia {
 
 	return []models.InputMedia{&models.InputMediaVideo{
 		Media: "attach://" + utils.SanitizeString(
-			fmt.Sprintf("SmudgeLord-Bluesky_%s_%s", h.username, h.postID)),
+			fmt.Sprintf("Eleine-Bluesky_%s_%s", h.username, h.postID)),
 		Thumbnail: &models.InputFileUpload{
 			Filename: utils.SanitizeString(
-				fmt.Sprintf("SmudgeLord-Bluesky_%s_%s", h.username, h.postID)),
+				fmt.Sprintf("Eleine-Bluesky_%s_%s", h.username, h.postID)),
 			Data: bytes.NewBuffer(thumbnail),
 		},
 		Width:             width,
@@ -264,7 +264,7 @@ func (h *Handler) handleImage(blueskyImages []Image) []models.InputMedia {
 		if result.file != nil {
 			mediaItems[result.index] = &models.InputMediaPhoto{
 				Media: "attach://" + utils.SanitizeString(
-					fmt.Sprintf("SmudgeLord-Bluesky_%s_%s", h.username, h.postID)),
+					fmt.Sprintf("Eleine-Bluesky_%s_%s", h.username, h.postID)),
 				MediaAttachment: bytes.NewBuffer(result.file),
 			}
 		}

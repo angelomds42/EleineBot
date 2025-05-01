@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ruizlenato/smudgelord/internal/config"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/config"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 const lastFMAPI = "http://ws.audioscrobbler.com/2.0"
@@ -147,7 +147,7 @@ func (lfm *LastFM) PlayCount(recentTracks *recentTracks, method string) int {
 
 	if err != nil {
 		slog.Error("Couldn't request get info",
-"Error", err.Error())
+			"Error", err.Error())
 		return 0
 	}
 	defer response.Body.Close()
@@ -156,7 +156,7 @@ func (lfm *LastFM) PlayCount(recentTracks *recentTracks, method string) int {
 	err = json.NewDecoder(response.Body).Decode(&getInfo)
 	if err != nil {
 		slog.Error("Couldn't unmarshal get info",
-"Error", err.Error())
+			"Error", err.Error())
 	}
 
 	var userPlaycount int

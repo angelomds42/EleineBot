@@ -9,9 +9,9 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/localization"
-	lastFMAPI "github.com/ruizlenato/smudgelord/internal/modules/lastfm/api"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/localization"
+	lastFMAPI "github.com/angelomds42/EleineBot/internal/modules/lastfm/api"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 var lastFM = lastFMAPI.Init()

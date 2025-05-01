@@ -5,14 +5,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/angelomds42/EleineBot/internal/modules/afk"
+	"github.com/angelomds42/EleineBot/internal/modules/config"
+	"github.com/angelomds42/EleineBot/internal/modules/lastfm"
+	"github.com/angelomds42/EleineBot/internal/modules/medias"
+	"github.com/angelomds42/EleineBot/internal/modules/menu"
+	"github.com/angelomds42/EleineBot/internal/modules/misc"
+	"github.com/angelomds42/EleineBot/internal/modules/stickers"
 	"github.com/go-telegram/bot"
-	"github.com/ruizlenato/smudgelord/internal/modules/afk"
-	"github.com/ruizlenato/smudgelord/internal/modules/config"
-	"github.com/ruizlenato/smudgelord/internal/modules/lastfm"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias"
-	"github.com/ruizlenato/smudgelord/internal/modules/menu"
-	"github.com/ruizlenato/smudgelord/internal/modules/misc"
-	"github.com/ruizlenato/smudgelord/internal/modules/stickers"
 )
 
 var (

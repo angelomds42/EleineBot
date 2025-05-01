@@ -12,7 +12,7 @@ import (
 	"github.com/lus/fluent.go/fluent"
 	"golang.org/x/text/language"
 
-	"github.com/ruizlenato/smudgelord/internal/database"
+	"github.com/angelomds42/EleineBot/internal/database"
 )
 
 const defaultLanguage = "en-us"

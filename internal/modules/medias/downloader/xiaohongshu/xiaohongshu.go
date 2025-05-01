@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 type Handler struct {
@@ -170,7 +170,7 @@ func (h *Handler) downloadVideo(noteData Note) []models.InputMedia {
 
 	return []models.InputMedia{&models.InputMediaVideo{
 		Media: "attach://" + utils.SanitizeString(
-			fmt.Sprintf("SmudgeLord-Xiaohongshu_%s", h.postID)),
+			fmt.Sprintf("Eleine-Xiaohongshu_%s", h.postID)),
 		Width:             videoInfo.Width,
 		Height:            videoInfo.Height,
 		Duration:          videoInfo.Duration / 1000,
@@ -239,14 +239,14 @@ func (h *Handler) downloadImages(noteData Note) []models.InputMedia {
 			if noteData.Note.ImageList[result.index].LivePhoto {
 				mediaItems[result.index] = &models.InputMediaVideo{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Xiaohongshu_%d_%s", result.index, h.postID)),
+						fmt.Sprintf("Eleine-Xiaohongshu_%d_%s", result.index, h.postID)),
 					SupportsStreaming: true,
 					MediaAttachment:   bytes.NewBuffer(result.file),
 				}
 			} else {
 				mediaItems[result.index] = &models.InputMediaPhoto{
 					Media: "attach://" + utils.SanitizeString(
-						fmt.Sprintf("SmudgeLord-Xiaohongshu_%d_%s", result.index, h.postID)),
+						fmt.Sprintf("Eleine-Xiaohongshu_%d_%s", result.index, h.postID)),
 					MediaAttachment: bytes.NewBuffer(result.file),
 				}
 			}

@@ -10,8 +10,8 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/localization"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/localization"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 func CheckAFKMiddleware(next bot.HandlerFunc) bot.HandlerFunc {

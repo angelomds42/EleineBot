@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 type Handler struct {
@@ -156,7 +156,7 @@ func (h *Handler) downloadImages(tikTokData TikTokData) []models.InputMedia {
 		if result.file != nil {
 			mediaItems[result.index] = &models.InputMediaPhoto{
 				Media: "attach://" + utils.SanitizeString(
-					fmt.Sprintf("SmudgeLord-TikTok_%d_%s_%s", result.index, h.username, h.postID)),
+					fmt.Sprintf("Eleine-TikTok_%d_%s_%s", result.index, h.username, h.postID)),
 				MediaAttachment: bytes.NewBuffer(result.file),
 			}
 		}
@@ -191,10 +191,10 @@ func (h *Handler) downloadVideo(tikTokData TikTokData) []models.InputMedia {
 
 	return []models.InputMedia{&models.InputMediaVideo{
 		Media: "attach://" + utils.SanitizeString(
-			fmt.Sprintf("SmudgeLord-TikTok_%s_%s", h.username, h.postID)),
+			fmt.Sprintf("Eleine-TikTok_%s_%s", h.username, h.postID)),
 		Thumbnail: &models.InputFileUpload{
 			Filename: "attach://" + utils.SanitizeString(
-				fmt.Sprintf("SmudgeLord-TikTok_%s_%s", h.username, h.postID)),
+				fmt.Sprintf("Eleine-TikTok_%s_%s", h.username, h.postID)),
 			Data: bytes.NewBuffer(thumbnail),
 		},
 		Width:             tikTokData.AwemeList[0].Video.PlayAddr.Width,

@@ -15,9 +15,9 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/steino/youtubedl"
 
-	"github.com/ruizlenato/smudgelord/internal/config"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/config"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 func getVideoFormat(video *youtubedl.Video, itag int) (*youtubedl.Format, error) {
@@ -210,7 +210,7 @@ func Handle(videoURL string) ([]models.InputMedia, []string) {
 	}
 
 	return []models.InputMedia{&models.InputMediaVideo{
-		Media:             "attach://" + utils.SanitizeString(fmt.Sprintf("SmudgeLord-YouTube_%s_%s.mp4", video.Author, video.Title)),
+		Media:             "attach://" + utils.SanitizeString(fmt.Sprintf("Eleine-YouTube_%s_%s.mp4", video.Author, video.Title)),
 		Width:             video.Formats.Itag(videoStream.ItagNo)[0].Width,
 		Height:            video.Formats.Itag(videoStream.ItagNo)[0].Height,
 		SupportsStreaming: true,

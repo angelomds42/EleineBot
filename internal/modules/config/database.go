@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/ruizlenato/smudgelord/internal/database"
+	"github.com/angelomds42/EleineBot/internal/database"
 )
 
 func getDisabledCommands(chatID int64) ([]string, error) {

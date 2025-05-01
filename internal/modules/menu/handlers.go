@@ -10,8 +10,8 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/ruizlenato/smudgelord/internal/localization"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/localization"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 func createStartKeyboard(i18n func(string, ...map[string]any) string) *models.InlineKeyboardMarkup {
@@ -202,10 +202,6 @@ func aboutMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 					{
 						Text: i18n("donation-button"),
 						URL:  "https://ko-fi.com/ruizlenato",
-					},
-					{
-						Text: i18n("news-channel-button"),
-						URL:  "https://t.me/SmudgeLordChannel",
 					},
 				},
 				{

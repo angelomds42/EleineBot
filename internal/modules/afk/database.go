@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/ruizlenato/smudgelord/internal/database"
+	"github.com/angelomds42/EleineBot/internal/database"
 )
 
 type AFKError struct {

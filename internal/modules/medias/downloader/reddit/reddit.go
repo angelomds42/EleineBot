@@ -14,8 +14,8 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/grafov/m3u8"
 
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 var redlibInstance = "https://reddit.idevicehacked.com"
@@ -193,7 +193,7 @@ func (h *Handler) processRedlibVideo(content []byte, response *http.Response) []
 
 		video := []models.InputMedia{&models.InputMediaVideo{
 			Media: "attach://" + utils.SanitizeString(
-				fmt.Sprintf("SmudgeLord-Reddit_%s_%s", h.subreddit, h.postID)),
+				fmt.Sprintf("Eleine-Reddit_%s_%s", h.subreddit, h.postID)),
 			SupportsStreaming: true,
 			MediaAttachment:   bytes.NewBuffer(videoFile),
 		}}
@@ -201,7 +201,7 @@ func (h *Handler) processRedlibVideo(content []byte, response *http.Response) []
 		if thumbnail != nil {
 			video[0].(*models.InputMediaVideo).Thumbnail = &models.InputFileUpload{
 				Filename: utils.SanitizeString(
-					fmt.Sprintf("SmudgeLord-Reddit_%s_%s", h.subreddit, h.postID)),
+					fmt.Sprintf("Eleine-Reddit_%s_%s", h.subreddit, h.postID)),
 				Data: bytes.NewBuffer(thumbnail),
 			}
 		}
@@ -296,7 +296,7 @@ func (h *Handler) processRedlibImage(content []byte, response *http.Response) []
 
 		return []models.InputMedia{&models.InputMediaPhoto{
 			Media: "attach://" + utils.SanitizeString(
-				fmt.Sprintf("SmudgeLord-Reddit_%s_%s", h.subreddit, h.postID)),
+				fmt.Sprintf("Eleine-Reddit_%s_%s", h.subreddit, h.postID)),
 			MediaAttachment: bytes.NewBuffer(file),
 		}}
 	}
@@ -329,7 +329,7 @@ func (h *Handler) processRedlibGallery(content [][][]byte, response *http.Respon
 
 			inputMedia := &models.InputMediaPhoto{
 				Media: "attach://" + utils.SanitizeString(
-					fmt.Sprintf("SmudgeLord-Reddit_%d_%s_%s", index, h.subreddit, h.postID)),
+					fmt.Sprintf("Eleine-Reddit_%d_%s_%s", index, h.subreddit, h.postID)),
 				MediaAttachment: bytes.NewBuffer(file),
 			}
 			results <- mediaResult{index: index, media: inputMedia, err: nil}
@@ -383,7 +383,7 @@ func (h *Handler) getAPIData() *Data {
 }
 
 func (h *Handler) processAPIMedia(data *Data) []models.InputMedia {
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-Reddit_%s_%s", h.subreddit, h.postID))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-Reddit_%s_%s", h.subreddit, h.postID))
 	if data.IsVideo {
 		video, err := downloader.FetchBytesFromURL(data.Media.RedditVideo.FallbackURL)
 		if err != nil {

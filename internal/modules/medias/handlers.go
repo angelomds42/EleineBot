@@ -16,19 +16,19 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/steino/youtubedl"
 
-	"github.com/ruizlenato/smudgelord/internal/config"
-	"github.com/ruizlenato/smudgelord/internal/database"
-	"github.com/ruizlenato/smudgelord/internal/localization"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/bluesky"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/instagram"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/reddit"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/threads"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/tiktok"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/twitter"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/xiaohongshu"
-	"github.com/ruizlenato/smudgelord/internal/modules/medias/downloader/youtube"
-	"github.com/ruizlenato/smudgelord/internal/utils"
+	"github.com/angelomds42/EleineBot/internal/config"
+	"github.com/angelomds42/EleineBot/internal/database"
+	"github.com/angelomds42/EleineBot/internal/localization"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/bluesky"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/instagram"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/reddit"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/threads"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/tiktok"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/twitter"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/xiaohongshu"
+	"github.com/angelomds42/EleineBot/internal/modules/medias/downloader/youtube"
+	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
 const (
@@ -358,7 +358,7 @@ func youtubeDownloadCallback(ctx context.Context, b *bot.Bot, update *models.Upd
 
 	var replied *models.Message
 	caption := fmt.Sprintf("<b>%s:</b> %s", video.Author, video.Title)
-	filename := utils.SanitizeString(fmt.Sprintf("SmudgeLord-%s_%s", video.Author, video.Title))
+	filename := utils.SanitizeString(fmt.Sprintf("Eleine-%s_%s", video.Author, video.Title))
 	switch callbackData[0] {
 	case "_aud":
 		replied, err = b.SendAudio(ctx, &bot.SendAudioParams{
