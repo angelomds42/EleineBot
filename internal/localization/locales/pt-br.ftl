@@ -118,8 +118,9 @@ moderation-help =
 
     <b>— Restriçoes:</b>
     <b>/banir [ID|resposta] (tempo) (revoke):</b> Bane um usuário do grupo.
+    <b>/mute [ID|resposta] (tempo):</b> Silenciar um usuário do grupo.
     <b> - ID ou resposta:</b> Especifique o ID do usuário ou responda à mensagem dele.
-    <b> - tempo:</b> (opcional) Defina por quanto tempo o usuário ficará banido (ex: 1h, 2d).
+    <b> - tempo:</b> (opcional) Defina por quanto tempo a restrição será aplicada (ex: 1h, 2d).
     <b> - revoke:</b> (opcional) Se definido, remove todas as mensagens do usuário.
 
     <b>— Configurações:</b>
@@ -294,3 +295,7 @@ ban-id-required = Você precisa responder a uma mensagem ou fornecer o ID do usu
 ban-id-invalid = Não foi possível encontrar esse usuário. Responda a uma mensagem dele ou informe um ID válido.
 ban-success = O usuário <a>{ $userBannedFirstName }</a> foi banido com sucesso.
 ban-failed = Não foi possível banir este usuário.
+mute-id-required = Você precisa responder a uma mensagem ou fornecer o ID do usuário que deseja silenciar.
+mute-id-invalid = Não foi possível encontrar esse usuário. Responda a uma mensagem dele ou informe um ID válido.
+mute-failed = Não foi possível silenciar este usuário.
+mute-success = O usuário <a>{ $userMutedFirstName }</a> foi silenciado com sucesso.

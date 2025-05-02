@@ -500,6 +500,114 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
+func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	msg := update.Message
+	i18n := localization.Get(update)
+	chatID := msg.Chat.ID
+
+	var userIDToMute int64
+	var untilDate int
+
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		userIDToMute = msg.ReplyToMessage.From.ID
+	} else {
+		parts := strings.Fields(msg.Text)
+		if len(parts) < 2 {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				Text:            i18n("mute-id-required", nil),
+				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+			})
+			return
+		}
+
+		arg := parts[1]
+		var found bool
+
+		if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
+			userIDToMute = id
+			found = true
+		} else {
+			for _, entity := range msg.Entities {
+				start := entity.Offset
+				length := entity.Length
+				if start+length > len(msg.Text) {
+					continue
+				}
+				entityText := msg.Text[start : start+length]
+				if entityText == arg {
+					if entity.Type == "text_mention" && entity.User != nil {
+						userIDToMute = entity.User.ID
+						found = true
+						break
+					}
+				}
+			}
+		}
+
+		if !found {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				Text:            i18n("mute-id-invalid", nil),
+				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+			})
+			return
+		}
+
+		if len(parts) >= 3 {
+			if dur, errDur := time.ParseDuration(parts[2]); errDur == nil {
+				untilDate = int(time.Now().Add(dur).Unix())
+			}
+		}
+	}
+
+	permissions := &models.ChatPermissions{
+		CanSendMessages:       false,
+		CanSendAudios:         false,
+		CanSendDocuments:      false,
+		CanSendPhotos:         false,
+		CanSendVideos:         false,
+		CanSendVideoNotes:     false,
+		CanSendVoiceNotes:     false,
+		CanSendPolls:          false,
+		CanSendOtherMessages:  false,
+		CanAddWebPagePreviews: false,
+		CanChangeInfo:         false,
+		CanInviteUsers:        false,
+		CanPinMessages:        false,
+	}
+
+	params := &bot.RestrictChatMemberParams{
+		ChatID:      chatID,
+		UserID:      userIDToMute,
+		Permissions: permissions,
+	}
+	if untilDate > 0 {
+		params.UntilDate = untilDate
+	}
+
+	_, err := b.RestrictChatMember(ctx, params)
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			Text:            i18n("mute-failed", nil),
+			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+		})
+		return
+	}
+
+	name := strconv.FormatInt(userIDToMute, 10)
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
+	}
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		Text:            i18n("mute-success", map[string]interface{}{"userMutedFirstName": name}),
+		ParseMode:       models.ParseModeHTML,
+		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+	})
+}
+
 func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "languageMenu", bot.MatchTypeExact, languageMenuCallback)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "setLang", bot.MatchTypeContains, setLanguageCallback)
@@ -513,6 +621,7 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "disableable", bot.MatchTypeCommand, disableableHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, banUserHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "mute", bot.MatchTypeCommand, muteUserHandler)
 
 	utils.SaveHelp("moderation")
 }

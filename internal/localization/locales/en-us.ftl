@@ -118,6 +118,7 @@ moderation-help =
 
     <b>— Restrictions:</b>
     <b>/ban [ID|reply] (duration) (revoke):</b> Bans a user from the group.
+    <b>/mute [ID|reply] (tempo):</b> Mute a user from the group.
     <b> - ID or reply:</b> Specify the user's ID or reply to their message.
     <b> - duration:</b> (optional) Set how long the user will be banned (e.g., 1h, 2d).
     <b> - revoke:</b> (optional) If set, removes all messages from the user.
@@ -296,3 +297,7 @@ ban-id-required = You need to reply to a message or provide the ID of the user y
 ban-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
 ban-success = User <a>{ $userBannedFirstName }</a> has been successfully banned.
 ban-failed = Could not ban this user.
+mute-id-required = You need to reply to a message or provide the ID of the user you want to mute.
+mute-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
+mute-success = User <a>{ $userMutedFirstName }</a> has been successfully muted.
+mute-failed = Could not mute this user.
