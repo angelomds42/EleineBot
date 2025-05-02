@@ -109,14 +109,14 @@ user-unavailable =
     Visto pela última vez à <code>{ $duration}</code> atrás.
 user-unavailable-reason = <b>Reason:</b> <code>{ $reason }</code>
 now-available = <b><a href='tg://user?id={ $userID }'>{ $userFirstName }</a></b> está de volta após <code>{ $duration }</code> de ausência!
-config = Configurações
-config-help =
-    <b>Configurações:</b>
+moderation = Moderaçao
+moderation-help =
+    <b>Moderaçao:</b>
 
     Esse módulo é feito para ser <b>utilizado em grupos.</b>
     Você deve ser administrador para utilizá-lo.
 
-    <b>— Comandos:</b>
+    <b>— Configurações:</b>
     <b>/disable (comando):</b> Desativa o comando especificado no grupo.
     <b>/enable (comando):</b> Reativa o comando que foi previamente desativado.
     <b>/disableable:</b> Lista todos os comandos que podem ser desativados.

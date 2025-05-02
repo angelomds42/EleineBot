@@ -109,14 +109,14 @@ user-unavailable =
     Last seen <code>{ $duration }</code> ago
 user-unavailable-reason = <b>Reason:</b> <code>{ $reason }</code>
 now-available = <b><a href='tg://user?id={ $userID }'>{ $userFirstName }</a></b> is back after <code>{ $duration }</code> away!
-config = Settings
-config-help =
-    <b>Settings:</b>
+moderation = Moderation
+moderation-help =
+    <b>Moderation:</b>
 
     This module is designed to be <b>used in groups.</b>
     You must be an administrator to use them.
 
-    <b>— Commands:</b>
+    <b>— Configuration:</b>
     <b>/disable (command):</b> Disables the specified command in the group.
     <b>/enable (command):</b> Reactivates a command that was previously disabled.
     <b>/disableable:</b> Lists all commands that can be disabled.

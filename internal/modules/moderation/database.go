@@ -1,4 +1,4 @@
-package config
+package moderation
 
 import (
 	"github.com/angelomds42/EleineBot/internal/database"

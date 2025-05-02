@@ -1,4 +1,4 @@
-package config
+package moderation
 
 import (
 	"context"
@@ -411,5 +411,5 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "disableable", bot.MatchTypeCommand, disableableHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
 
-	utils.SaveHelp("config")
+	utils.SaveHelp("moderation")
 }

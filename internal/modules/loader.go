@@ -6,25 +6,25 @@ import (
 	"sync"
 
 	"github.com/angelomds42/EleineBot/internal/modules/afk"
-	"github.com/angelomds42/EleineBot/internal/modules/config"
 	"github.com/angelomds42/EleineBot/internal/modules/lastfm"
 	"github.com/angelomds42/EleineBot/internal/modules/medias"
 	"github.com/angelomds42/EleineBot/internal/modules/menu"
 	"github.com/angelomds42/EleineBot/internal/modules/misc"
 	"github.com/angelomds42/EleineBot/internal/modules/stickers"
+	"github.com/angelomds42/EleineBot/internal/modules/moderation"
 	"github.com/go-telegram/bot"
 )
 
 var (
 	packageLoadersMutex sync.Mutex
 	packageLoaders      = map[string]func(*bot.Bot){
-		"afk":      afk.Load,
-		"config":   config.Load,
-		"lastfm":   lastfm.Load,
-		"medias":   medias.Load,
-		"menu":     menu.Load,
-		"misc":     misc.Load,
-		"stickers": stickers.Load,
+		"afk":        afk.Load,
+		"moderation": moderation.Load,
+		"lastfm":     lastfm.Load,
+		"medias":     medias.Load,
+		"menu":       menu.Load,
+		"misc":       misc.Load,
+		"stickers":   stickers.Load,
 	}
 )
 
