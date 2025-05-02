@@ -43,3 +43,11 @@ func CheckDisabledMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		next(ctx, b, update)
 	}
 }
+
+func IsAdmin(ctx context.Context, b *bot.Bot, chatID int64, userID int64) bool {
+	member, err := b.GetChatMember(ctx, &bot.GetChatMemberParams{
+		ChatID: chatID,
+		UserID: userID,
+	})
+	return err == nil && (member.Type == models.ChatMemberTypeAdministrator || member.Type == models.ChatMemberTypeOwner)
+}

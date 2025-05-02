@@ -116,6 +116,12 @@ moderation-help =
     This module is designed to be <b>used in groups.</b>
     You must be an administrator to use them.
 
+    <b>— Restrictions:</b>
+    <b>/ban [ID|reply] (duration) (revoke):</b> Bans a user from the group.
+    <b> - ID or reply:</b> Specify the user's ID or reply to their message.
+    <b> - duration:</b> (optional) Set how long the user will be banned (e.g., 1h, 2d).
+    <b> - revoke:</b> (optional) If set, removes all messages from the user.
+
     <b>— Configuration:</b>
     <b>/disable (command):</b> Disables the specified command in the group.
     <b>/enable (command):</b> Reactivates a command that was previously disabled.
@@ -286,3 +292,7 @@ lastfm-help =
     <b>/lastfm | /lp:</b> Shows the music you are or were listening to.
     <b>/album | /alb:</b>Shows the album you are or were listening to.
     <b>/artist   | /art:</b> Shows the artist you are or were listening to.
+ban-id-required = You need to reply to a message or provide the ID of the user you want to ban.
+ban-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
+ban-success = User <a>{ $userBannedFirstName }</a> has been successfully banned.
+ban-failed = Could not ban this user.

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -398,6 +400,106 @@ func explainConfigCallback(ctx context.Context, b *bot.Bot, update *models.Updat
 	})
 }
 
+func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	msg := update.Message
+	i18n := localization.Get(update)
+	chatID := msg.Chat.ID
+
+	var userIDToBan int64
+	var err error
+	var untilDate int
+	revoke := false
+
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		userIDToBan = msg.ReplyToMessage.From.ID
+	} else {
+		parts := strings.Fields(msg.Text)
+		if len(parts) < 2 {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				Text:            i18n("ban-id-required", nil),
+				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+			})
+			return
+		}
+
+		arg := parts[1]
+		var found bool
+
+		if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
+			userIDToBan = id
+			found = true
+		} else {
+			for _, entity := range msg.Entities {
+				start := entity.Offset
+				length := entity.Length
+				if start+length > len(msg.Text) {
+					continue
+				}
+				entityText := msg.Text[start : start+length]
+				if entityText == arg {
+					if entity.Type == "text_mention" && entity.User != nil {
+						userIDToBan = entity.User.ID
+						found = true
+						break
+					}
+				}
+			}
+		}
+
+		if !found {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:          chatID,
+				Text:            i18n("ban-id-invalid", nil),
+				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+			})
+			return
+		}
+
+		if len(parts) >= 3 {
+			if dur, errDur := time.ParseDuration(parts[2]); errDur == nil {
+				untilDate = int(time.Now().Add(dur).Unix())
+			} else if strings.EqualFold(parts[2], "revoke") {
+				revoke = true
+			}
+			if len(parts) >= 4 && strings.EqualFold(parts[3], "revoke") {
+				revoke = true
+			}
+		}
+	}
+
+	params := &bot.BanChatMemberParams{
+		ChatID:         chatID,
+		UserID:         userIDToBan,
+		RevokeMessages: revoke,
+	}
+	if untilDate > 0 {
+		params.UntilDate = untilDate
+	}
+
+	_, err = b.BanChatMember(ctx, params)
+	if err != nil {
+		slog.Error("BanChatMember failed", "userID", userIDToBan, "error", err)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			Text:            i18n("ban-failed", nil),
+			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+		})
+		return
+	}
+
+	name := strconv.FormatInt(userIDToBan, 10)
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
+	}
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		Text:            i18n("ban-success", map[string]interface{}{"userBannedFirstName": name}),
+		ParseMode:       models.ParseModeHTML,
+		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+	})
+}
+
 func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "languageMenu", bot.MatchTypeExact, languageMenuCallback)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "setLang", bot.MatchTypeContains, setLanguageCallback)
@@ -410,6 +512,7 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "disabled", bot.MatchTypeCommand, disabledHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "disableable", bot.MatchTypeCommand, disableableHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, banUserHandler)
 
 	utils.SaveHelp("moderation")
 }
