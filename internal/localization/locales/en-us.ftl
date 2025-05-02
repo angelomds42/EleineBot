@@ -295,9 +295,11 @@ lastfm-help =
     <b>/artist   | /art:</b> Shows the artist you are or were listening to.
 ban-id-required = You need to reply to a message or provide the ID of the user you want to ban.
 ban-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
-ban-success = User <a>{ $userBannedFirstName }</a> has been successfully banned.
+ban-success = User <a>{ $userBannedFirstName }</a> has been permanently banned.
 ban-failed = Could not ban this user.
 mute-id-required = You need to reply to a message or provide the ID of the user you want to mute.
 mute-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
-mute-success = User <a>{ $userMutedFirstName }</a> has been successfully muted.
+mute-success = User <a>{ $userMutedFirstName }</a> has been permanently muted.
 mute-failed = Could not mute this user.
+mute-success-temp = User <a>{ $userMutedFirstName }</a> has been muted until <code>{ $untilDate }</code>.
+ban-success-temp = User <a>{ $userBanedFirstName }</a> has been banned until <code>{ $untilDate }</code>.

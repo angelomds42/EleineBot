@@ -3,7 +3,9 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -44,10 +46,35 @@ func CheckDisabledMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	}
 }
 
-func IsAdmin(ctx context.Context, b *bot.Bot, chatID int64, userID int64) bool {
-	member, err := b.GetChatMember(ctx, &bot.GetChatMemberParams{
-		ChatID: chatID,
-		UserID: userID,
-	})
-	return err == nil && (member.Type == models.ChatMemberTypeAdministrator || member.Type == models.ChatMemberTypeOwner)
+func GetBotID(ctx context.Context, b *bot.Bot) (int64, error) {
+	me, err := b.GetMe(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return me.ID, nil
+}
+
+func ParseCustomDuration(s string) (time.Duration, error) {
+	if d, err := time.ParseDuration(s); err == nil {
+		return d, nil
+	}
+	if len(s) < 2 {
+		return 0, fmt.Errorf("invalid duration")
+	}
+	unit := s[len(s)-1]
+	numStr := s[:len(s)-1]
+	num, err := strconv.Atoi(numStr)
+	if err != nil {
+		return 0, err
+	}
+	switch unit {
+	case 'd':
+		return time.Hour * 24 * time.Duration(num), nil
+	case 'w':
+		return time.Hour * 24 * 7 * time.Duration(num), nil
+	case 'm':
+		return time.Hour * 24 * 30 * time.Duration(num), nil
+	default:
+		return 0, fmt.Errorf("invalid unit")
+	}
 }

@@ -410,10 +410,21 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	var untilDate int
 	revoke := false
 
+	parts := strings.Fields(msg.Text)
+
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		userIDToBan = msg.ReplyToMessage.From.ID
+		if len(parts) >= 2 {
+			durStr := parts[1]
+			dur, errDur := utils.ParseCustomDuration(durStr)
+			if errDur == nil {
+				untilDate = int(time.Now().Add(dur).Unix())
+			}
+		}
+		if len(parts) >= 3 && strings.EqualFold(parts[2], "revoke") {
+			revoke = true
+		}
 	} else {
-		parts := strings.Fields(msg.Text)
 		if len(parts) < 2 {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:          chatID,
@@ -457,14 +468,14 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		}
 
 		if len(parts) >= 3 {
-			if dur, errDur := time.ParseDuration(parts[2]); errDur == nil {
+			durStr := parts[2]
+			dur, errDur := utils.ParseCustomDuration(durStr)
+			if errDur == nil {
 				untilDate = int(time.Now().Add(dur).Unix())
-			} else if strings.EqualFold(parts[2], "revoke") {
-				revoke = true
 			}
-			if len(parts) >= 4 && strings.EqualFold(parts[3], "revoke") {
-				revoke = true
-			}
+		}
+		if len(parts) >= 4 && strings.EqualFold(parts[3], "revoke") {
+			revoke = true
 		}
 	}
 
@@ -492,9 +503,17 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
 	}
+
+	respKey := "ban-success"
+	respData := map[string]interface{}{"userBannedFirstName": name}
+	if untilDate > 0 {
+		respKey = "ban-success-temp"
+		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
+	}
+
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:          chatID,
-		Text:            i18n("ban-success", map[string]interface{}{"userBannedFirstName": name}),
+		Text:            i18n(respKey, respData),
 		ParseMode:       models.ParseModeHTML,
 		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
 	})
@@ -508,10 +527,18 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	var userIDToMute int64
 	var untilDate int
 
+	parts := strings.Fields(msg.Text)
+
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		userIDToMute = msg.ReplyToMessage.From.ID
+		if len(parts) >= 2 {
+			durStr := parts[1]
+			dur, errDur := utils.ParseCustomDuration(durStr)
+			if errDur == nil {
+				untilDate = int(time.Now().Add(dur).Unix())
+			}
+		}
 	} else {
-		parts := strings.Fields(msg.Text)
 		if len(parts) < 2 {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:          chatID,
@@ -600,9 +627,17 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
 	}
+
+	respKey := "mute-success"
+	respData := map[string]interface{}{"userMutedFirstName": name}
+	if untilDate > 0 {
+		respKey = "mute-success-temp"
+		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
+	}
+
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:          chatID,
-		Text:            i18n("mute-success", map[string]interface{}{"userMutedFirstName": name}),
+		Text:            i18n(respKey, respData),
 		ParseMode:       models.ParseModeHTML,
 		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
 	})
