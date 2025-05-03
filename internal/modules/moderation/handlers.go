@@ -643,6 +643,48 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
+func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	msg := update.Message
+	i18n := localization.Get(update)
+	chatID := msg.Chat.ID
+
+	var msgIDToDel int
+
+	if msg.ReplyToMessage != nil {
+		msgIDToDel = msg.ReplyToMessage.ID
+	} else {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			Text:            i18n("delete-msg-id-required", nil),
+			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+		})
+		return
+	}
+
+	params := &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: msgIDToDel,
+	}
+
+	_, err := b.DeleteMessage(ctx, params)
+	if err != nil {
+		slog.Error("DeleteMessage failed", "messageID", msgIDToDel, "error", err)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:          chatID,
+			Text:            i18n("delete-msg-failed", nil),
+			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+		})
+		return
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:          chatID,
+		Text:            i18n("delete-msg-success"),
+		ParseMode:       models.ParseModeHTML,
+		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
+	})
+}
+
 func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "languageMenu", bot.MatchTypeExact, languageMenuCallback)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "setLang", bot.MatchTypeContains, setLanguageCallback)
@@ -657,6 +699,7 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, banUserHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "mute", bot.MatchTypeCommand, muteUserHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "del", bot.MatchTypeCommand, deleteMsgHandler)
 
 	utils.SaveHelp("moderation")
 }

@@ -46,14 +46,6 @@ func CheckDisabledMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	}
 }
 
-func GetBotID(ctx context.Context, b *bot.Bot) (int64, error) {
-	me, err := b.GetMe(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return me.ID, nil
-}
-
 func ParseCustomDuration(s string) (time.Duration, error) {
 	if d, err := time.ParseDuration(s); err == nil {
 		return d, nil

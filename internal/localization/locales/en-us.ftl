@@ -119,6 +119,7 @@ moderation-help =
     <b>— Restrictions:</b>
     <b>/ban [ID|reply] (duration) (revoke):</b> Bans a user from the group.
     <b>/mute [ID|reply] (tempo):</b> Mute a user from the group.
+    <b>/delete [reply]:</b> Delete a message.
     <b> - ID or reply:</b> Specify the user's ID or reply to their message.
     <b> - duration:</b> (optional) Set how long the user will be banned (e.g., 1h, 2d).
     <b> - revoke:</b> (optional) If set, removes all messages from the user.
@@ -303,3 +304,6 @@ mute-success = User <a>{ $userMutedFirstName }</a> has been permanently muted.
 mute-failed = Could not mute this user.
 mute-success-temp = User <a>{ $userMutedFirstName }</a> has been muted until <code>{ $untilDate }</code>.
 ban-success-temp = User <a>{ $userBanedFirstName }</a> has been banned until <code>{ $untilDate }</code>.
+delete-msg-id-required = You need to reply to the message you want to delete.
+delete-msg-failed = Could not delete the message. Bots can only delete messages sent within the last 48 hours.
+delete-msg-success = Message deleted successfully.
