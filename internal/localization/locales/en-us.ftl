@@ -308,3 +308,23 @@ delete-msg-failed = Could not delete the message. Bots can only delete messages 
 delete-msg-success = Message deleted successfully.
 bot-not-admin = I need to be an administrator to run this command.
 user-not-admin = You do not have permission to run this command.
+device-usage-hint = You need to provide a device name or codename to search.
+device-not-found = No devices found matching <code>{ $searchTerm }</code>.
+device-search-error = Could not retrieve device information. Please try again later.
+device-found = <b>Devices found:</b>
+device-info =
+    <b>Name:</b> <code>{ $device-name }</code>
+    <b>Brand:</b> <code>{ $device-brand }</code>
+    <b>Model:</b> <code>{ $device-model }</code>
+    <b>Codename:</b> <code>{ $device-codename }</code>
+device-more-results = More results available. Showing first 5 matches - try a more specific search.
+android = Android
+android-help = <b>Android:</b>
+
+    Here you can find commands for devices related to Android devices.
+
+    <b>— Searches:</b>  
+    <b>/device [name|codename|model]:</b> Search for Android device information.
+    <b> - name:</b> Commercial name (e.g., <i>Redmi Note 11</i>).
+    <b> - codename:</b> Device codename (e.g., <i>spes</i>).
+    <b> - model:</b> Device model (e.g., <i>2201117TG</i>).

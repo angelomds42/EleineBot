@@ -6,12 +6,13 @@ import (
 	"sync"
 
 	"github.com/angelomds42/EleineBot/internal/modules/afk"
+	"github.com/angelomds42/EleineBot/internal/modules/android"
 	"github.com/angelomds42/EleineBot/internal/modules/lastfm"
 	"github.com/angelomds42/EleineBot/internal/modules/medias"
 	"github.com/angelomds42/EleineBot/internal/modules/menu"
 	"github.com/angelomds42/EleineBot/internal/modules/misc"
-	"github.com/angelomds42/EleineBot/internal/modules/stickers"
 	"github.com/angelomds42/EleineBot/internal/modules/moderation"
+	"github.com/angelomds42/EleineBot/internal/modules/stickers"
 	"github.com/go-telegram/bot"
 )
 
@@ -25,6 +26,7 @@ var (
 		"menu":       menu.Load,
 		"misc":       misc.Load,
 		"stickers":   stickers.Load,
+		"android":    android.Load,
 	}
 )
 
