@@ -242,8 +242,9 @@ get-sticker-no-reply-provided =
 sticker-invalid-media-type = The file you replied to is not valid. You need to reply to an <i><b>sticker</b></i>, <i><b>video</b></i> or <i><b>photo</b></i>.
 sticker-new-pack = <code>Creating a new sticker pack...</code>
 sticker-stoled = 
-    Sticker <b>successfully</b> stolen, <a href='t.me/addstickers/{ $stickerSetName }'>check out.</a>
+    Sticker <b>successfully</b> stolen
     <b>Emoji:</b> { $emoji }
+sticker-view-pack = View sticker pack
 stickers-help = 
     <b>Stickers</b>
 
@@ -294,12 +295,10 @@ lastfm-help =
     <b>/lastfm | /lp:</b> Shows the music you are or were listening to.
     <b>/album | /alb:</b>Shows the album you are or were listening to.
     <b>/artist   | /art:</b> Shows the artist you are or were listening to.
-ban-id-required = You need to reply to a message or provide the ID of the user you want to ban.
-ban-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
+id-required = You need to reply to a message or provide the ID of the user.
+id-invalid = Could not find this user. Reply to a message or provide a valid ID.
 ban-success = User <a>{ $userBannedFirstName }</a> has been permanently banned.
 ban-failed = Could not ban this user.
-mute-id-required = You need to reply to a message or provide the ID of the user you want to mute.
-mute-id-invalid = Could not find this user. Reply to one of their messages or provide a valid ID.
 mute-success = User <a>{ $userMutedFirstName }</a> has been permanently muted.
 mute-failed = Could not mute this user.
 mute-success-temp = User <a>{ $userMutedFirstName }</a> has been muted until <code>{ $untilDate }</code>.

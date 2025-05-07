@@ -14,7 +14,7 @@ import (
 
 const lastFMAPI = "http://ws.audioscrobbler.com/2.0"
 
-type lastFMRecentTrack struct {
+type LastFMRecentTrack struct {
 	Track      string
 	Album      string
 	Artist     string
@@ -82,7 +82,7 @@ func (lfm *LastFM) GetRecentTrackAPI(username string) *recentTracks {
 	return &recentTracks
 }
 
-func (lfm *LastFM) GetRecentTrack(methodType, username string) (lastFMRecentTrack, error) {
+func (lfm *LastFM) GetRecentTrack(methodType, username string) (LastFMRecentTrack, error) {
 	var track string
 	var artist string
 	var album string
@@ -94,10 +94,10 @@ func (lfm *LastFM) GetRecentTrack(methodType, username string) (lastFMRecentTrac
 	recentTracks := lfm.GetRecentTrackAPI(username)
 
 	if recentTracks == nil {
-		return lastFMRecentTrack{}, fmt.Errorf("lastFM error")
+		return LastFMRecentTrack{}, fmt.Errorf("lastFM error")
 	}
 	if recentTracks.RecentTracks == nil || len(*recentTracks.RecentTracks.Track) < 1 {
-		return lastFMRecentTrack{}, fmt.Errorf("no recent tracks")
+		return LastFMRecentTrack{}, fmt.Errorf("no recent tracks")
 	}
 
 	image = (*recentTracks.RecentTracks.Track)[0].Image[3].Text
@@ -116,7 +116,7 @@ func (lfm *LastFM) GetRecentTrack(methodType, username string) (lastFMRecentTrac
 		playcount = lfm.PlayCount(recentTracks, methodType)
 	}
 
-	return lastFMRecentTrack{Track: track, Album: album, Artist: artist, Image: image, Playcount: playcount, Nowplaying: nowplaying, Trackloved: trackloved}, nil
+	return LastFMRecentTrack{Track: track, Album: album, Artist: artist, Image: image, Playcount: playcount, Nowplaying: nowplaying, Trackloved: trackloved}, nil
 }
 
 func (lfm *LastFM) PlayCount(recentTracks *recentTracks, method string) int {

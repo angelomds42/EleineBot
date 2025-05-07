@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/angelomds42/EleineBot/internal/config"
@@ -15,111 +14,140 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-var announceMessageText string
+var announceMessages = make(map[int64]string)
 
 func announceHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	var lang string
-	message := update.Message
-
-	if message == nil {
-		message = update.CallbackQuery.Message.Message
-		lang = strings.ReplaceAll(update.CallbackQuery.Data, "announce ", "")
-	}
-
-	if (message == nil || message.From.ID != config.OwnerID) &&
-		(update.CallbackQuery == nil || update.CallbackQuery.From.ID != config.OwnerID) {
+	msg := getMessage(update)
+	if msg == nil || !isOwner(update) {
 		return
 	}
 
+	chatID := msg.Chat.ID
+	lang := getLanguage(update)
 	if lang == "" {
-		buttons := make([][]models.InlineKeyboardButton, 0, len(database.AvailableLocales))
-		for _, lang := range database.AvailableLocales {
-			loaded, ok := localization.LangBundles[lang]
-			if !ok {
-				slog.Error("Language not found in the cache",
-					"lang", lang)
-				os.Exit(1)
+		announceMessages[chatID] = utils.FormatText(msg.Text, msg.Entities)
+		sendLanguageSelector(ctx, b, msg)
+		return
+	}
 
-			}
-			languageFlag, _, _ := loaded.FormatMessage("language-flag")
-			languageName, _, _ := loaded.FormatMessage("language-name")
+	announceToTargets(ctx, b, update, lang)
+	delete(announceMessages, chatID)
+}
 
-			buttons = append(buttons, []models.InlineKeyboardButton{{
-				Text: languageFlag +
-					languageName,
-				CallbackData: fmt.Sprintf("announce %s", lang),
-			}})
+func getMessage(update *models.Update) *models.Message {
+	if update.Message != nil {
+		return update.Message
+	}
+	if update.CallbackQuery != nil {
+		return update.CallbackQuery.Message.Message
+	}
+	return nil
+}
+
+func isOwner(update *models.Update) bool {
+	if update.Message != nil && update.Message.From.ID == config.OwnerID {
+		return true
+	}
+	if update.CallbackQuery != nil && update.CallbackQuery.From.ID == config.OwnerID {
+		return true
+	}
+	return false
+}
+
+func getLanguage(update *models.Update) string {
+	if update.CallbackQuery != nil {
+		return strings.TrimPrefix(update.CallbackQuery.Data, "announce ")
+	}
+	return ""
+}
+
+func sendLanguageSelector(ctx context.Context, b *bot.Bot, msg *models.Message) {
+	var buttons [][]models.InlineKeyboardButton
+	for _, lang := range database.AvailableLocales {
+		bundle, ok := localization.LangBundles[lang]
+		if !ok {
+			slog.Error("Language bundle not found", "lang", lang)
+			continue
 		}
+		flag, _, _ := bundle.FormatMessage("language-flag")
+		name, _, _ := bundle.FormatMessage("language-name")
+		buttons = append(buttons, []models.InlineKeyboardButton{{
+			Text:         flag + name,
+			CallbackData: fmt.Sprintf("announce %s", lang),
+		}})
+	}
 
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      "Choose a language:",
-			ParseMode: models.ParseModeHTML,
-			ReplyMarkup: &models.InlineKeyboardMarkup{
-				InlineKeyboard: buttons,
-			},
-		})
-		announceMessageText = utils.FormatText(message.Text, message.Entities)
+	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, "Choose a language:",
+		utils.WithReplyMarkupSend(&models.InlineKeyboardMarkup{InlineKeyboard: buttons}),
+	)
+}
+
+func announceToTargets(ctx context.Context, b *bot.Bot, update *models.Update, lang string) {
+	msg := getMessage(update)
+	if msg == nil {
+		return
+	}
+	chatID := msg.Chat.ID
+	text, ok := announceMessages[chatID]
+	if !ok {
 		return
 	}
 
-	messageFields := strings.Fields(announceMessageText)
-	if len(messageFields) < 2 {
+	fields := strings.Fields(text)
+	if len(fields) < 2 {
 		return
 	}
 
-	announceType := messageFields[1]
-	announceMessageText = strings.Replace(announceMessageText, messageFields[0], "", 1)
-	var query string
+	announceType := fields[1]
+	body := strings.TrimSpace(strings.TrimPrefix(text, fields[0]+" "+announceType))
 
-	switch announceType {
-	case "groups":
-		announceMessageText = strings.Replace(announceMessageText, announceType, "", 1)
-		query = fmt.Sprintf("SELECT id FROM groups WHERE language = '%s';", lang)
-	case "users":
-		announceMessageText = strings.Replace(announceMessageText, announceType, "", 1)
-		query = fmt.Sprintf("SELECT id FROM users WHERE language = '%s';", lang)
-	default:
-		query = fmt.Sprintf("SELECT id FROM users WHERE language = '%s' UNION ALL SELECT id FROM groups WHERE language = '%s';", lang, lang)
-	}
-
+	query := getQueryForType(announceType, lang)
 	rows, err := database.DB.Query(query)
 	if err != nil {
+		slog.Error("Query announce targets failed", "error", err)
 		return
 	}
 	defer rows.Close()
 
-	var successCount, errorCount int
-
+	var (
+		totalCount   int
+		successCount int
+	)
 	for rows.Next() {
-		var chatID int64
-		if err := rows.Scan(&chatID); err != nil {
+		var targetID int64
+		totalCount++
+		if err := rows.Scan(&targetID); err != nil {
 			continue
 		}
-		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      announceMessageText,
-			ParseMode: models.ParseModeHTML,
-		})
-		if err != nil {
-			errorCount++
-			continue
-		}
-
+		utils.SendMessage(ctx, b, targetID, 0, body)
 		successCount++
 	}
 
-	if err := rows.Err(); err != nil {
-		return
-	}
+	failedCount := totalCount - successCount
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      fmt.Sprintf("<b>Messages sent successfully:</b> <code>%d</code>\n<b>Messages unsent:</b> <code>%d</code>", successCount, errorCount),
-		ParseMode: models.ParseModeHTML,
-	})
-	announceMessageText = ""
+	cb := update.CallbackQuery
+	utils.EditMessage(ctx, b,
+		cb.Message.Message.Chat.ID,
+		cb.Message.Message.ID,
+		fmt.Sprintf(
+			"<b>Messages sent:</b> <code>%d</code>\n<b>Failed:</b> <code>%d</code>",
+			successCount, failedCount,
+		),
+	)
+}
+
+func getQueryForType(announceType, lang string) string {
+	switch announceType {
+	case "groups":
+		return fmt.Sprintf("SELECT id FROM groups WHERE language = '%s';", lang)
+	case "users":
+		return fmt.Sprintf("SELECT id FROM users WHERE language = '%s';", lang)
+	default:
+		return fmt.Sprintf(
+			"SELECT id FROM users WHERE language = '%s' UNION ALL SELECT id FROM groups WHERE language = '%s';",
+			lang, lang,
+		)
+	}
 }
 
 func Load(b *bot.Bot) {

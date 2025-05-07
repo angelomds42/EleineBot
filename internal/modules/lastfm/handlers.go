@@ -29,26 +29,12 @@ func setUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if len(strings.Fields(message.Text)) > 1 {
 		lastFMUsername = strings.Fields(message.Text)[1]
 	} else {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("no-lastfm-username-provided"),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, message.Chat.ID, message.ID, i18n("no-lastfm-username-provided"))
 		return
 	}
 
 	if lastFM.GetUser(lastFMUsername) != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("invalid-lastfm-username"),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, message.Chat.ID, message.ID, i18n("invalid-lastfm-username"))
 		return
 	}
 
@@ -60,14 +46,7 @@ func setUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("lastfm-username-saved"),
-		ParseMode: "HTML",
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, message.Chat.ID, message.ID, i18n("lastfm-username-saved"))
 }
 
 func getErrorMessage(err error, i18n func(string, ...map[string]interface{}) string) string {
@@ -97,27 +76,13 @@ func lastfm(ctx context.Context, b *bot.Bot, update *models.Update, methodType s
 	i18n := localization.Get(update)
 	lastFMUsername, err := getUserLastFMUsername(update.Message.From.ID)
 	if err != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("lastfm-username-not-defined"),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, i18n("lastfm-username-not-defined"))
 		return
 	}
 
 	recentTracks, err := lastFM.GetRecentTrack(methodType, lastFMUsername)
 	if err != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      getErrorMessage(err, i18n),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, getErrorMessage(err, i18n))
 		return
 	}
 
@@ -140,7 +105,8 @@ func lastfm(ctx context.Context, b *bot.Bot, update *models.Update, methodType s
 	case "artist":
 		text += fmt.Sprintf("\n\n🎙<b>%s</b>", recentTracks.Artist)
 	}
-	b.SendMessage(ctx, &bot.SendMessageParams{
+
+	_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      text,
 		ParseMode: models.ParseModeHTML,

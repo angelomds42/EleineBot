@@ -14,6 +14,10 @@ import (
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
+func WithLargeMediaPreview(p *bot.SendMessageParams) {
+	p.LinkPreviewOptions = &models.LinkPreviewOptions{PreferLargeMedia: bot.True()}
+}
+
 func CheckAFKMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		message := update.Message
@@ -65,22 +69,14 @@ func CheckAFKMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 				return
 			}
 
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: message.Chat.ID,
-				Text: i18n("now-available",
-					map[string]interface{}{
-						"userID":        message.From.ID,
-						"userFirstName": utils.EscapeHTML(message.From.FirstName),
-						"duration":      humanizedDuration,
-					}),
-				LinkPreviewOptions: &models.LinkPreviewOptions{
-					PreferLargeMedia: bot.True(),
-				},
-				ParseMode: models.ParseModeHTML,
-				ReplyParameters: &models.ReplyParameters{
-					MessageID: message.ID,
-				},
-			})
+			utils.SendMessage(ctx, b, message.Chat.ID, message.ID,
+				i18n("now-available", map[string]interface{}{
+					"userID":        message.From.ID,
+					"userFirstName": utils.EscapeHTML(message.From.FirstName),
+					"duration":      humanizedDuration,
+				}),
+				WithLargeMediaPreview,
+			)
 		}
 
 		if mentionedUserID != 0 && user_is_away(mentionedUserID) {
@@ -101,31 +97,21 @@ func CheckAFKMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 				return
 			}
 
-			text := i18n("user-unavailable",
-				map[string]interface{}{
-					"userID":        mentionedUserID,
-					"userFirstName": utils.EscapeHTML(user.FirstName),
-					"duration":      humanizedDuration,
-				})
+			text := i18n("user-unavailable", map[string]interface{}{
+				"userID":        mentionedUserID,
+				"userFirstName": utils.EscapeHTML(user.FirstName),
+				"duration":      humanizedDuration,
+			})
 
 			if reason != "" {
-				text += "\n" + i18n("user-unavailable-reason",
-					map[string]interface{}{
-						"reason": reason,
-					})
+				text += "\n" + i18n("user-unavailable-reason", map[string]interface{}{
+					"reason": reason,
+				})
 			}
 
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: message.Chat.ID,
-				Text:   text,
-				LinkPreviewOptions: &models.LinkPreviewOptions{
-					PreferLargeMedia: bot.True(),
-				},
-				ParseMode: models.ParseModeHTML,
-				ReplyParameters: &models.ReplyParameters{
-					MessageID: message.ID,
-				},
-			})
+			utils.SendMessage(ctx, b, message.Chat.ID, message.ID, text,
+				WithLargeMediaPreview,
+			)
 		}
 
 		next(ctx, b, update)
@@ -173,17 +159,11 @@ func setAFKHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 	i18n := localization.Get(update)
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text: i18n("user-now-unavailable",
-			map[string]interface{}{
-				"userFirstName": utils.EscapeHTML(update.Message.From.FirstName),
-			}),
-		ParseMode: models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+		i18n("user-now-unavailable", map[string]interface{}{
+			"userFirstName": utils.EscapeHTML(update.Message.From.FirstName),
+		}),
+	)
 }
 
 func extractReason(text string) string {

@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -68,5 +69,170 @@ func ParseCustomDuration(s string) (time.Duration, error) {
 		return time.Hour * 24 * 30 * time.Duration(num), nil
 	default:
 		return 0, fmt.Errorf("invalid unit")
+	}
+}
+
+func SendMessage(
+	ctx context.Context,
+	b *bot.Bot,
+	chatID int64,
+	replyTo int,
+	text string,
+	opts ...func(*bot.SendMessageParams),
+) {
+	params := &bot.SendMessageParams{
+		ChatID:             chatID,
+		Text:               text,
+		ParseMode:          models.ParseModeHTML,
+		LinkPreviewOptions: &models.LinkPreviewOptions{IsDisabled: bot.True()},
+	}
+	if replyTo != 0 {
+		params.ReplyParameters = &models.ReplyParameters{MessageID: replyTo}
+	}
+	for _, opt := range opts {
+		opt(params)
+	}
+	if _, err := b.SendMessage(ctx, params); err != nil {
+		slog.Error("utils: SendMessage failed", "chatID", chatID, "error", err)
+	}
+}
+
+func SendMessageWithResult(
+	ctx context.Context,
+	b *bot.Bot,
+	chatID int64,
+	replyTo int,
+	text string,
+	opts ...func(*bot.SendMessageParams),
+) (*models.Message, error) {
+	params := &bot.SendMessageParams{
+		ChatID:             chatID,
+		Text:               text,
+		ParseMode:          models.ParseModeHTML,
+		LinkPreviewOptions: &models.LinkPreviewOptions{IsDisabled: bot.True()},
+	}
+	if replyTo != 0 {
+		params.ReplyParameters = &models.ReplyParameters{MessageID: replyTo}
+	}
+	for _, opt := range opts {
+		opt(params)
+	}
+	msg, err := b.SendMessage(ctx, params)
+	if err != nil {
+		slog.Error("utils: SendMessageWithResult failed", "chatID", chatID, "error", err)
+	}
+	return msg, err
+}
+
+func WithReplyMarkupSend(markup *models.InlineKeyboardMarkup) func(*bot.SendMessageParams) {
+	return func(p *bot.SendMessageParams) {
+		p.ReplyMarkup = markup
+	}
+}
+
+func WithReplyTo(messageID int) func(*bot.SendMessageParams) {
+	return func(p *bot.SendMessageParams) {
+		p.ReplyParameters = &models.ReplyParameters{MessageID: messageID}
+	}
+}
+
+func EditMessage(
+	ctx context.Context,
+	b *bot.Bot,
+	chatID int64,
+	messageID int,
+	text string,
+	opts ...func(*bot.EditMessageTextParams),
+) {
+	params := &bot.EditMessageTextParams{
+		ChatID:             chatID,
+		MessageID:          messageID,
+		Text:               text,
+		ParseMode:          models.ParseModeHTML,
+		LinkPreviewOptions: &models.LinkPreviewOptions{IsDisabled: bot.True()},
+	}
+	for _, opt := range opts {
+		opt(params)
+	}
+	if _, err := b.EditMessageText(ctx, params); err != nil {
+		slog.Error("utils: EditMessage failed", "chatID", chatID, "messageID", messageID, "error", err)
+	}
+}
+
+func WithReplyMarkup(markup *models.InlineKeyboardMarkup) func(*bot.EditMessageTextParams) {
+	return func(p *bot.EditMessageTextParams) {
+		p.ReplyMarkup = markup
+	}
+}
+
+func SendAudio(
+	ctx context.Context,
+	b *bot.Bot,
+	chatID int64,
+	replyTo int,
+	audio models.InputFile,
+	opts ...func(*bot.SendAudioParams),
+) (*models.Message, error) {
+	params := &bot.SendAudioParams{ChatID: chatID, Audio: audio, ParseMode: models.ParseModeHTML}
+	if replyTo != 0 {
+		params.ReplyParameters = &models.ReplyParameters{MessageID: replyTo}
+	}
+	for _, opt := range opts {
+		opt(params)
+	}
+	msg, err := b.SendAudio(ctx, params)
+	if err != nil {
+		slog.Error("utils: SendAudio failed", "chatID", chatID, "error", err)
+	}
+	return msg, err
+}
+
+func SendVideo(
+	ctx context.Context,
+	b *bot.Bot,
+	chatID int64,
+	replyTo int,
+	video models.InputFile,
+	width, height int,
+	opts ...func(*bot.SendVideoParams),
+) (*models.Message, error) {
+	params := &bot.SendVideoParams{ChatID: chatID, Video: video, Width: width, Height: height, ParseMode: models.ParseModeHTML}
+	if replyTo != 0 {
+		params.ReplyParameters = &models.ReplyParameters{MessageID: replyTo}
+	}
+	for _, opt := range opts {
+		opt(params)
+	}
+	msg, err := b.SendVideo(ctx, params)
+	if err != nil {
+		slog.Error("utils: SendVideo failed", "chatID", chatID, "error", err)
+	}
+	return msg, err
+}
+
+func WithAudioCaption(caption string) func(*bot.SendAudioParams) {
+	return func(p *bot.SendAudioParams) {
+		p.Caption = caption
+	}
+}
+
+func WithVideoCaption(caption string) func(*bot.SendVideoParams) {
+	return func(p *bot.SendVideoParams) {
+		p.Caption = caption
+	}
+}
+
+func SendCallbackReply(
+	ctx context.Context,
+	b *bot.Bot,
+	callbackID string,
+	text string,
+) {
+	if _, err := b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: callbackID,
+		Text:            text,
+		ShowAlert:       true,
+	}); err != nil {
+		slog.Error("utils: SendCallbackReply failed", "callbackID", callbackID, "error", err)
 	}
 }

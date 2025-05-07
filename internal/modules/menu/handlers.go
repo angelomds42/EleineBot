@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -18,21 +17,10 @@ func createStartKeyboard(i18n func(string, ...map[string]any) string) *models.In
 	return &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{
-					Text:         i18n("about-button"),
-					CallbackData: "about",
-				},
-				{
-					Text:         fmt.Sprintf("%s %s", i18n("language-flag"), i18n("language-button")),
-					CallbackData: "languageMenu",
-				},
+				{Text: i18n("about-button"), CallbackData: "about"},
+				{Text: fmt.Sprintf("%s %s", i18n("language-flag"), i18n("language-button")), CallbackData: "languageMenu"},
 			},
-			{
-				{
-					Text:         i18n("help-button"),
-					CallbackData: "helpMenu",
-				},
-			},
+			{{Text: i18n("help-button"), CallbackData: "helpMenu"}},
 		},
 	}
 }
@@ -41,250 +29,151 @@ func startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	botUser, err := b.GetMe(ctx)
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		slog.Error("GetMe failed", "error", err)
+		return
 	}
 
-	if messageFields := strings.Fields(update.Message.Text); len(messageFields) > 1 && messageFields[1] == "privacy" {
+	chatID := update.Message.Chat.ID
+	msgID := update.Message.ID
+	fields := strings.Fields(update.Message.Text)
+	if len(fields) > 1 && fields[1] == "privacy" {
 		privacyHandler(ctx, b, update)
 		return
 	}
 
 	if update.Message.Chat.Type == models.ChatTypeGroup || update.Message.Chat.Type == models.ChatTypeSupergroup {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text: i18n("start-message-group",
-				map[string]any{
-					"botName": botUser.FirstName,
-				}),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-			ReplyMarkup: &models.InlineKeyboardMarkup{
-				InlineKeyboard: [][]models.InlineKeyboardButton{{{
-					Text: i18n("start-button"),
-					URL:  fmt.Sprintf("https://t.me/%s?start=start", botUser.Username),
-				}}},
-			},
-		})
+		text := i18n("start-message-group", map[string]any{"botName": botUser.FirstName})
+		markup := &models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{{
+				{Text: i18n("start-button"), URL: fmt.Sprintf("https://t.me/%s?start=start", botUser.Username)},
+			}},
+		}
+		utils.SendMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkupSend(markup))
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text: i18n("start-message",
-			map[string]any{
-				"userFirstName": update.Message.From.FirstName,
-				"botName":       botUser.FirstName,
-			}),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
-		},
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-		ReplyMarkup: createStartKeyboard(i18n),
-	})
+	text := i18n("start-message", map[string]any{"userFirstName": update.Message.From.FirstName, "botName": botUser.FirstName})
+	opts := []func(*bot.SendMessageParams){
+		utils.WithReplyMarkupSend(createStartKeyboard(i18n)),
+	}
+	utils.SendMessage(ctx, b, chatID, msgID, text, opts...)
 }
 
 func startCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	botUser, err := b.GetMe(ctx)
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		slog.Error("GetMe failed", "error", err)
+		return
 	}
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text: i18n("start-message",
-			map[string]any{
-				"userFirstName": update.CallbackQuery.Message.Message.From.FirstName,
-				"botName":       botUser.FirstName,
-			}),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
-		},
-		ReplyMarkup: createStartKeyboard(i18n),
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n("start-message", map[string]any{
+		"userFirstName": update.CallbackQuery.Message.Message.From.FirstName,
+		"botName":       botUser.FirstName,
 	})
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(createStartKeyboard(i18n)))
 }
 
 func privacyHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	botUser, err := b.GetMe(ctx)
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
-	}
-
-	if update.Message.Chat.Type == models.ChatTypeGroup || update.Message.Chat.Type == models.ChatTypeSupergroup {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("privacy-policy-group"),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-			ReplyMarkup: &models.InlineKeyboardMarkup{
-				InlineKeyboard: [][]models.InlineKeyboardButton{{{
-					Text: i18n("privacy-policy-button"),
-					URL:  fmt.Sprintf("https://t.me/%s?start=privacy", botUser.Username),
-				}}},
-			},
-		})
+		slog.Error("GetMe failed", "error", err)
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("privacy-policy-private"),
-		ParseMode: models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{{{
-				Text:         i18n("about-your-data-button"),
-				CallbackData: "aboutYourData",
-			}}},
-		},
-	})
+	chatID := update.Message.Chat.ID
+	msgID := update.Message.ID
+	if update.Message.Chat.Type == models.ChatTypeGroup || update.Message.Chat.Type == models.ChatTypeSupergroup {
+		text := i18n("privacy-policy-group")
+		markup := &models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{{
+				{Text: i18n("privacy-policy-button"), URL: fmt.Sprintf("https://t.me/%s?start=privacy", botUser.Username)},
+			}},
+		}
+		utils.SendMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkupSend(markup))
+		return
+	}
+
+	text := i18n("privacy-policy-private")
+	markup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{{
+			{Text: i18n("about-your-data-button"), CallbackData: "aboutYourData"},
+		}},
+	}
+	utils.SendMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkupSend(markup))
 }
 
 func privacyCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n("privacy-policy-private"),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n("privacy-policy-private")
+	markup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: i18n("about-your-data-button"), CallbackData: "aboutYourData"}},
+			{{Text: i18n("back-button"), CallbackData: "about"}},
 		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{
-						Text:         i18n("about-your-data-button"),
-						CallbackData: "aboutYourData",
-					},
-				},
-				{
-					{
-						Text:         i18n("back-button"),
-						CallbackData: "about",
-					},
-				},
-			},
-		},
-	})
+	}
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
 func aboutMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n("about"),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n("about")
+	markup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: i18n("donation-button"), URL: "https://ko-fi.com/ruizlenato"}},
+			{{Text: i18n("privacy-policy-button"), CallbackData: "privacy"}},
+			{{Text: i18n("back-button"), CallbackData: "start"}},
 		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{
-						Text: i18n("donation-button"),
-						URL:  "https://ko-fi.com/ruizlenato",
-					},
-				},
-				{
-					{
-						Text:         i18n("privacy-policy-button"),
-						CallbackData: "privacy",
-					},
-				},
-				{
-					{
-						Text:         i18n("back-button"),
-						CallbackData: "start",
-					},
-				},
-			},
-		},
-	})
+	}
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
 func aboutYourDataCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n("about-your-data"),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
-		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{
-						Text:         i18n("back-button"),
-						CallbackData: "privacy",
-					},
-				},
-			},
-		},
-	})
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n("about-your-data")
+	markup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{{
+			{Text: i18n("back-button"), CallbackData: "privacy"},
+		}},
+	}
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
 func helpMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n("help"),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
-		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: utils.GetHelpKeyboard(i18n),
-		},
-	})
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n("help")
+	markup := &models.InlineKeyboardMarkup{InlineKeyboard: utils.GetHelpKeyboard(i18n)}
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
 func helpMessageCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
-	module := strings.ReplaceAll(update.CallbackQuery.Data, "helpMessage ", "")
+	module := strings.TrimPrefix(update.CallbackQuery.Data, "helpMessage ")
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n(fmt.Sprintf("%s-help", module)),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: bot.True(),
-		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{
-						Text:         i18n("back-button"),
-						CallbackData: "helpMenu",
-					},
-				},
-			},
-		},
-	})
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	msgID := update.CallbackQuery.Message.Message.ID
+	text := i18n(fmt.Sprintf("%s-help", module))
+	markup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{{
+			{Text: i18n("back-button"), CallbackData: "helpMenu"},
+		}},
+	}
+	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
 func Load(b *bot.Bot) {

@@ -17,6 +17,63 @@ import (
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
+func parseUserAndDuration(msg *models.Message, i18n func(string, ...map[string]any) string) (userID int64, untilDate int, errMsg string) {
+	parts := strings.Fields(msg.Text)
+
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		userID = msg.ReplyToMessage.From.ID
+		if len(parts) >= 2 {
+			durStr := parts[1]
+			if dur, err := utils.ParseCustomDuration(durStr); err == nil {
+				untilDate = int(time.Now().Add(dur).Unix())
+			}
+		}
+		return userID, untilDate, ""
+	}
+
+	if len(parts) < 2 {
+		return 0, 0, i18n("id-required")
+	}
+
+	arg := parts[1]
+	if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
+		userID = id
+	} else {
+		for _, entity := range msg.Entities {
+			start := entity.Offset
+			length := entity.Length
+			if start+length > len(msg.Text) {
+				continue
+			}
+			entityText := msg.Text[start : start+length]
+			if entityText == arg && entity.Type == "text_mention" && entity.User != nil {
+				userID = entity.User.ID
+				break
+			}
+		}
+	}
+
+	if userID == 0 {
+		return 0, 0, i18n("id-invalid")
+	}
+
+	if len(parts) >= 3 {
+		durStr := parts[2]
+		if dur, err := utils.ParseCustomDuration(durStr); err == nil {
+			untilDate = int(time.Now().Add(dur).Unix())
+		}
+	}
+
+	return userID, untilDate, ""
+}
+
+func getUserName(msg *models.Message, userID int64) string {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		return utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
+	}
+	return strconv.FormatInt(userID, 10)
+}
+
 func disableableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	text := i18n("disableables-commands")
@@ -25,18 +82,14 @@ func disableableHandler(ctx context.Context, b *bot.Bot, update *models.Update) 
 		text += "\n- <code>" + command + "</code>"
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      text,
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			PreferLargeMedia: bot.True(),
-			ShowAboveText:    bot.True(),
-		},
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, text,
+		utils.WithReplyMarkupSend((&models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{Text: i18n("back-button"), CallbackData: "config"},
+				},
+			},
+		})))
 }
 
 func disableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -53,62 +106,28 @@ func disableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if len(strings.Fields(update.Message.Text)) > 1 {
 		command := strings.Fields(update.Message.Text)[1]
 		if !contains(utils.DisableableCommands, command) {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text: i18n("command-not-deactivatable",
-					map[string]interface{}{
-						"command": command,
-					}),
-				ParseMode: "HTML",
-				ReplyParameters: &models.ReplyParameters{
-					MessageID: update.Message.ID,
-				},
-			})
+			utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+				i18n("command-not-deactivatable", map[string]interface{}{"command": command}))
 			return
 		}
 
 		if utils.CheckDisabledCommand(command, update.Message.Chat.ID) {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text: i18n("command-already-disabled",
-					map[string]interface{}{
-						"command": command,
-					}),
-				ParseMode: "HTML",
-				ReplyParameters: &models.ReplyParameters{
-					MessageID: update.Message.ID,
-				},
-			})
+			utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+				i18n("command-already-disabled", map[string]interface{}{"command": command}))
 			return
 		}
 
 		if err := insertDisabledCommand(update.Message.Chat.ID, command); err != nil {
-			fmt.Print("Error inserting command: " + err.Error())
+			slog.Error("Error inserting command", "error", err)
 			return
 		}
 
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text: i18n("command-disabled",
-				map[string]interface{}{
-					"command": command,
-				}),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+			i18n("command-disabled", map[string]interface{}{"command": command}))
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("disable-commands-usage"),
-		ParseMode: "HTML",
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, i18n("disable-commands-usage"))
 }
 
 func enableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -118,47 +137,22 @@ func enableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		command := strings.Fields(update.Message.Text)[1]
 
 		if !utils.CheckDisabledCommand(command, update.Message.Chat.ID) {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text: i18n("command-already-enabled",
-					map[string]interface{}{
-						"command": command,
-					}),
-				ParseMode: "HTML",
-				ReplyParameters: &models.ReplyParameters{
-					MessageID: update.Message.ID,
-				},
-			})
+			utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+				i18n("command-already-enabled", map[string]interface{}{"command": command}))
 			return
 		}
 
 		if err := deleteDisabledCommand(command); err != nil {
-			fmt.Print("Error deleting command: " + err.Error())
+			slog.Error("Error deleting command", "error", err)
 			return
 		}
 
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text: i18n("command-enabled",
-				map[string]interface{}{
-					"command": command,
-				}),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+			i18n("command-enabled", map[string]interface{}{"command": command}))
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("enable-commands-usage"),
-		ParseMode: "HTML",
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, i18n("enable-commands-usage"))
 }
 
 func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -166,17 +160,12 @@ func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	text := i18n("disabled-commands")
 	commands, err := getDisabledCommands(update.Message.Chat.ID)
 	if err != nil {
+		slog.Error("Error getting disabled commands", "error", err)
 		return
 	}
+
 	if len(commands) == 0 {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("no-disabled-commands"),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, i18n("no-disabled-commands"))
 		return
 	}
 
@@ -184,14 +173,7 @@ func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		text += "\n- <code>" + command + "</code>"
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      text,
-		ParseMode: "HTML",
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, text)
 }
 
 func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -205,7 +187,6 @@ func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update
 				"lang", lang,
 				"availableLocales", database.AvailableLocales)
 			os.Exit(1)
-
 		}
 		languageFlag, _, _ := loaded.FormatMessage("language-flag")
 		languageName, _, _ := loaded.FormatMessage("language-name")
@@ -216,17 +197,13 @@ func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update
 		}})
 	}
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text: i18n("language-menu",
-			map[string]any{
-				"languageFlag": i18n("language-flag"),
-				"languageName": i18n("language-name"),
-			}),
-		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: &models.InlineKeyboardMarkup{InlineKeyboard: buttons},
-	})
+	utils.EditMessage(ctx, b, update.CallbackQuery.Message.Message.Chat.ID,
+		update.CallbackQuery.Message.Message.ID,
+		i18n("language-menu", map[string]any{
+			"languageFlag": i18n("language-flag"),
+			"languageName": i18n("language-name"),
+		}),
+		utils.WithReplyMarkup(&models.InlineKeyboardMarkup{InlineKeyboard: buttons}))
 }
 
 func setLanguageCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -237,35 +214,28 @@ func setLanguageCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 	if update.CallbackQuery.Message.Message.Chat.Type == models.ChatTypePrivate {
 		dbQuery = "UPDATE users SET language = ? WHERE id = ?;"
 	}
-	_, err := database.DB.Exec(dbQuery, lang, update.CallbackQuery.Message.Message.Chat.ID)
-	if err != nil {
+
+	if _, err := database.DB.Exec(dbQuery, lang, update.CallbackQuery.Message.Message.Chat.ID); err != nil {
 		slog.Error("Couldn't update language",
 			"ChatID", update.CallbackQuery.Message.Message.ID,
 			"Error", err.Error())
 	}
 
-	buttons := make([][]models.InlineKeyboardButton, 0, len(database.AvailableLocales))
-
+	callbackData := "config"
 	if update.CallbackQuery.Message.Message.Chat.Type == models.ChatTypePrivate {
-		buttons = append(buttons, []models.InlineKeyboardButton{{
-			Text:         i18n("back-button"),
-			CallbackData: "start",
-		}})
-	} else {
-		buttons = append(buttons, []models.InlineKeyboardButton{{
-			Text:         i18n("back-button"),
-			CallbackData: "config",
-		}})
+		callbackData = "start"
 	}
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      i18n("language-changed"),
-
-		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: &models.InlineKeyboardMarkup{InlineKeyboard: buttons},
-	})
+	utils.EditMessage(ctx, b, update.CallbackQuery.Message.Message.Chat.ID,
+		update.CallbackQuery.Message.Message.ID,
+		i18n("language-changed"),
+		utils.WithReplyMarkup(&models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{Text: i18n("back-button"), CallbackData: callbackData},
+				},
+			},
+		}))
 }
 
 func createConfigKeyboard(i18n func(string, ...map[string]any) string) *models.InlineKeyboardMarkup {
@@ -289,28 +259,19 @@ func createConfigKeyboard(i18n func(string, ...map[string]any) string) *models.I
 
 func configHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("config-message"),
-		ParseMode: models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-		ReplyMarkup: createConfigKeyboard(i18n),
-	})
+	utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID,
+		i18n("config-message"),
+		utils.WithReplyMarkupSend(createConfigKeyboard(i18n)),
+	)
 }
 
 func configCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
-
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID:   update.CallbackQuery.Message.Message.ID,
-		Text:        i18n("config-message"),
-		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: createConfigKeyboard(i18n),
-	})
+	utils.EditMessage(ctx, b, update.CallbackQuery.Message.Message.Chat.ID,
+		update.CallbackQuery.Message.Message.ID,
+		i18n("config-message"),
+		utils.WithReplyMarkup(createConfigKeyboard(i18n)),
+	)
 }
 
 func getMediaConfig(chatID int64) (bool, bool, error) {
@@ -331,7 +292,6 @@ func mediaConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 	configType := strings.ReplaceAll(update.CallbackQuery.Data, "mediaConfig ", "")
 	if configType != "mediaConfig" {
 		query := fmt.Sprintf("UPDATE groups SET %s = ? WHERE id = ?;", configType)
-		var err error
 		switch configType {
 		case "mediasCaption":
 			mediasCaption = !mediasCaption
@@ -341,13 +301,14 @@ func mediaConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 			_, err = database.DB.Exec(query, mediasAuto, update.CallbackQuery.Message.Message.Chat.ID)
 		}
 		if err != nil {
+			slog.Error("Error updating media config", "error", err)
 			return
 		}
 	}
-	i18n := localization.Get(update)
 
-	state := func(mediasAuto bool) string {
-		if mediasAuto {
+	i18n := localization.Get(update)
+	state := func(flag bool) string {
+		if flag {
 			return "✅"
 		}
 		return "☑️"
@@ -355,237 +316,80 @@ func mediaConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 
 	buttons := [][]models.InlineKeyboardButton{
 		{
-			{
-				Text:         i18n("caption-button"),
-				CallbackData: "ieConfig mediasCaption",
-			},
-			{
-				Text:         state(mediasCaption),
-				CallbackData: "mediaConfig mediasCaption",
-			},
+			{Text: i18n("caption-button"), CallbackData: "ieConfig mediasCaption"},
+			{Text: state(mediasCaption), CallbackData: "mediaConfig mediasCaption"},
 		},
 		{
-			{
-				Text:         i18n("automatic-button"),
-				CallbackData: "ieConfig mediasAuto",
-			},
-			{
-				Text:         state(mediasAuto),
-				CallbackData: "mediaConfig mediasAuto",
-			},
+			{Text: i18n("automatic-button"), CallbackData: "ieConfig mediasAuto"},
+			{Text: state(mediasAuto), CallbackData: "mediaConfig mediasAuto"},
+		},
+		{
+			{Text: i18n("back-button"), CallbackData: "config"},
 		},
 	}
 
-	buttons = append(buttons, []models.InlineKeyboardButton{{
-		Text:         i18n("back-button"),
-		CallbackData: "config",
-	}})
-
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID:   update.CallbackQuery.Message.Message.ID,
-		Text:        i18n("config-medias"),
-		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: &models.InlineKeyboardMarkup{InlineKeyboard: buttons},
-	})
+	utils.EditMessage(ctx, b, update.CallbackQuery.Message.Message.Chat.ID,
+		update.CallbackQuery.Message.Message.ID,
+		i18n("config-medias"),
+		utils.WithReplyMarkup(&models.InlineKeyboardMarkup{InlineKeyboard: buttons}))
 }
 
 func explainConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	ieConfig := strings.ReplaceAll(update.CallbackQuery.Data, "ieConfig medias", "")
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-		Text:            i18n("ieConfig-" + ieConfig),
-		ShowAlert:       true,
-	})
+	utils.SendCallbackReply(ctx, b, update.CallbackQuery.ID, i18n("ieConfig-"+ieConfig))
 }
 
 func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
-	chatID := msg.Chat.ID
 
-	var userIDToBan int64
-	var err error
-	var untilDate int
+	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
+	if errMsg != "" {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, errMsg)
+		return
+	}
+
 	revoke := false
-
 	parts := strings.Fields(msg.Text)
-
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
-		userIDToBan = msg.ReplyToMessage.From.ID
-		if len(parts) >= 2 {
-			durStr := parts[1]
-			dur, errDur := utils.ParseCustomDuration(durStr)
-			if errDur == nil {
-				untilDate = int(time.Now().Add(dur).Unix())
-			}
-		}
-		if len(parts) >= 3 && strings.EqualFold(parts[2], "revoke") {
-			revoke = true
-		}
-	} else {
-		if len(parts) < 2 {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				Text:            i18n("ban-id-required", nil),
-				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-			})
-			return
-		}
-
-		arg := parts[1]
-		var found bool
-
-		if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
-			userIDToBan = id
-			found = true
-		} else {
-			for _, entity := range msg.Entities {
-				start := entity.Offset
-				length := entity.Length
-				if start+length > len(msg.Text) {
-					continue
-				}
-				entityText := msg.Text[start : start+length]
-				if entityText == arg {
-					if entity.Type == "text_mention" && entity.User != nil {
-						userIDToBan = entity.User.ID
-						found = true
-						break
-					}
-				}
-			}
-		}
-
-		if !found {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				Text:            i18n("ban-id-invalid", nil),
-				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-			})
-			return
-		}
-
-		if len(parts) >= 3 {
-			durStr := parts[2]
-			dur, errDur := utils.ParseCustomDuration(durStr)
-			if errDur == nil {
-				untilDate = int(time.Now().Add(dur).Unix())
-			}
-		}
-		if len(parts) >= 4 && strings.EqualFold(parts[3], "revoke") {
-			revoke = true
-		}
+	if (msg.ReplyToMessage != nil && len(parts) >= 3 && strings.EqualFold(parts[2], "revoke")) ||
+		(msg.ReplyToMessage == nil && len(parts) >= 4 && strings.EqualFold(parts[3], "revoke")) {
+		revoke = true
 	}
 
 	params := &bot.BanChatMemberParams{
-		ChatID:         chatID,
-		UserID:         userIDToBan,
+		ChatID:         msg.Chat.ID,
+		UserID:         userID,
 		RevokeMessages: revoke,
 	}
 	if untilDate > 0 {
 		params.UntilDate = untilDate
 	}
 
-	_, err = b.BanChatMember(ctx, params)
-	if err != nil {
-		slog.Error("BanChatMember failed", "userID", userIDToBan, "error", err)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			Text:            i18n("ban-failed", nil),
-			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-		})
+	if _, err := b.BanChatMember(ctx, params); err != nil {
+		slog.Error("BanChatMember failed", "userID", userID, "error", err)
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("ban-failed"))
 		return
 	}
 
-	name := strconv.FormatInt(userIDToBan, 10)
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
-		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
-	}
-
 	respKey := "ban-success"
-	respData := map[string]interface{}{"userBannedFirstName": name}
+	respData := map[string]interface{}{"userBannedFirstName": getUserName(msg, userID)}
 	if untilDate > 0 {
 		respKey = "ban-success-temp"
 		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:          chatID,
-		Text:            i18n(respKey, respData),
-		ParseMode:       models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-	})
+	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
 }
 
 func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
-	chatID := msg.Chat.ID
 
-	var userIDToMute int64
-	var untilDate int
-
-	parts := strings.Fields(msg.Text)
-
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
-		userIDToMute = msg.ReplyToMessage.From.ID
-		if len(parts) >= 2 {
-			durStr := parts[1]
-			dur, errDur := utils.ParseCustomDuration(durStr)
-			if errDur == nil {
-				untilDate = int(time.Now().Add(dur).Unix())
-			}
-		}
-	} else {
-		if len(parts) < 2 {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				Text:            i18n("mute-id-required", nil),
-				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-			})
-			return
-		}
-
-		arg := parts[1]
-		var found bool
-
-		if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
-			userIDToMute = id
-			found = true
-		} else {
-			for _, entity := range msg.Entities {
-				start := entity.Offset
-				length := entity.Length
-				if start+length > len(msg.Text) {
-					continue
-				}
-				entityText := msg.Text[start : start+length]
-				if entityText == arg {
-					if entity.Type == "text_mention" && entity.User != nil {
-						userIDToMute = entity.User.ID
-						found = true
-						break
-					}
-				}
-			}
-		}
-
-		if !found {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:          chatID,
-				Text:            i18n("mute-id-invalid", nil),
-				ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-			})
-			return
-		}
-
-		if len(parts) >= 3 {
-			if dur, errDur := time.ParseDuration(parts[2]); errDur == nil {
-				untilDate = int(time.Now().Add(dur).Unix())
-			}
-		}
+	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
+	if errMsg != "" {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, strings.Replace(errMsg, "id", "mute-id", 1))
+		return
 	}
 
 	permissions := &models.ChatPermissions{
@@ -605,42 +409,27 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 
 	params := &bot.RestrictChatMemberParams{
-		ChatID:      chatID,
-		UserID:      userIDToMute,
+		ChatID:      msg.Chat.ID,
+		UserID:      userID,
 		Permissions: permissions,
 	}
 	if untilDate > 0 {
 		params.UntilDate = untilDate
 	}
 
-	_, err := b.RestrictChatMember(ctx, params)
-	if err != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			Text:            i18n("mute-failed", nil),
-			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-		})
+	if _, err := b.RestrictChatMember(ctx, params); err != nil {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("mute-failed"))
 		return
 	}
 
-	name := strconv.FormatInt(userIDToMute, 10)
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
-		name = utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
-	}
-
 	respKey := "mute-success"
-	respData := map[string]interface{}{"userMutedFirstName": name}
+	respData := map[string]interface{}{"userMutedFirstName": getUserName(msg, userID)}
 	if untilDate > 0 {
 		respKey = "mute-success-temp"
 		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:          chatID,
-		Text:            i18n(respKey, respData),
-		ParseMode:       models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-	})
+	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
 }
 
 func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -648,41 +437,23 @@ func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	chatID := msg.Chat.ID
 
-	var msgIDToDel int
-
-	if msg.ReplyToMessage != nil {
-		msgIDToDel = msg.ReplyToMessage.ID
-	} else {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			Text:            i18n("delete-msg-id-required", nil),
-			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-		})
+	if msg.ReplyToMessage == nil {
+		utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-id-required"))
 		return
 	}
 
 	params := &bot.DeleteMessageParams{
 		ChatID:    chatID,
-		MessageID: msgIDToDel,
+		MessageID: msg.ReplyToMessage.ID,
 	}
 
-	_, err := b.DeleteMessage(ctx, params)
-	if err != nil {
-		slog.Error("DeleteMessage failed", "messageID", msgIDToDel, "error", err)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:          chatID,
-			Text:            i18n("delete-msg-failed", nil),
-			ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-		})
+	if _, err := b.DeleteMessage(ctx, params); err != nil {
+		slog.Error("DeleteMessage failed", "messageID", msg.ReplyToMessage.ID, "error", err)
+		utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-failed"))
 		return
 	}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:          chatID,
-		Text:            i18n("delete-msg-success"),
-		ParseMode:       models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{MessageID: msg.ID},
-	})
+	utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-success"))
 }
 
 func Load(b *bot.Bot) {

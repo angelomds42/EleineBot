@@ -245,8 +245,9 @@ get-sticker-no-reply-provided =
 sticker-invalid-media-type = O arquivo que você respondeu não é valido, responda a uma <i><b>figurinha</b></i> (sticker), um <i><b>vídeo</b></i> ou <i><b>uma foto</b></i>.
 sticker-new-pack = <code>Criando um novo pacote de figurinhas...</code>
 sticker-stoled = 
-    Figurinha roubada <b>com sucesso</b>, <a href='t.me/addstickers/{ $stickerSetName }'>confira.</a>
+    Figurinha roubada <b>com sucesso</b>
     <b>Emoji:</b> { $emoji }
+sticker-view-pack = Ver pacote de figurinhas
 stickers-help = 
     <b>Figurinhas — Stickers</b>
 
@@ -292,12 +293,10 @@ lastfm-help =
     <b>/lastfm | /lp:</b> Exibe a música que você está ouvindo ou ouviu recentemente.
     <b>/album | /alb:</b> Exibe o álbum que você está ouvindo ou ouviu recentemente.
     <b>/artist   | /art:</b> Exibe o artista que você está ouvindo ou ouviu recentemente.
-ban-id-required = Você precisa responder a uma mensagem ou fornecer o ID do usuário que deseja banir.
-ban-id-invalid = Não foi possível encontrar esse usuário. Responda a uma mensagem dele ou informe um ID válido.
+id-required = Você precisa responder a uma mensagem ou fornecer o ID do usuário.
+id-invalid = Não foi possível encontrar esse usuário. Responda a uma mensagem ou informe um ID válido.
 ban-success = O usuário <a>{ $userBannedFirstName }</a> foi banido permanentemente.
 ban-failed = Não foi possível banir este usuário.
-mute-id-required = Você precisa responder a uma mensagem ou fornecer o ID do usuário que deseja silenciar.
-mute-id-invalid = Não foi possível encontrar esse usuário. Responda a uma mensagem dele ou informe um ID válido.
 mute-failed = Não foi possível silenciar este usuário.
 mute-success = O usuário <a>{ $userMutedFirstName }</a> foi silenciado permanentemente.
 mute-success-temp = O usuário <a>{ $userMutedFirstName }</a> foi silenciado até <code>{ $untilDate }</code>.

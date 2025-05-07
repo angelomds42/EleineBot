@@ -10,209 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/angelomds42/EleineBot/internal/database"
 	"github.com/angelomds42/EleineBot/internal/localization"
 	"github.com/angelomds42/EleineBot/internal/utils"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
-func translateHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	var text string
-	i18n := localization.Get(update)
-
-	if update.Message.ReplyToMessage != nil {
-		replyText := ""
-		if messageText := update.Message.ReplyToMessage.Text; messageText != "" {
-			replyText = messageText
-		} else if caption := update.Message.ReplyToMessage.Caption; caption != "" {
-			replyText = caption
-		}
-		text = replyText
-		if len(update.Message.Text) > 4 {
-			text = update.Message.Text[4:] + " " + replyText
-		}
-	} else if len(update.Message.Text) > 4 && strings.Fields(update.Message.Text)[0] == "/tr" {
-		text = update.Message.Text[4:]
-	}
-
-	if messageFields := strings.Fields(update.Message.Text); messageFields[0] == "/translate" && len(update.Message.Text) > 11 {
-		text = update.Message.Text[11:]
-	}
-
-	if text == "" {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("translator-no-args-provided"),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
-		return
-	}
-
-	var sourceLang string
-	var targetLang string
-
-	language := getTranslateLang(text, update.Message.Chat)
-	if strings.HasPrefix(text, language) {
-		text = strings.Replace(text, language, "", 1)
-		text = strings.TrimSpace(text)
-	}
-
-	if text == "" {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("translator-no-args-provided"),
-			ParseMode: models.ParseModeHTML,
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
-		return
-	}
-
-	if langParts := strings.Split(language, "-"); len(langParts) > 1 {
-		sourceLang = langParts[0]
-		targetLang = langParts[1]
-	} else {
-		targetLang = language
-		sourceLang = "auto"
-	}
-
-	translation := new(struct {
-		Sentences []struct {
-			Trans   string `json:"trans"`
-			Orig    string `json:"orig"`
-			Backend int    `json:"backend"`
-		} `json:"sentences"`
-		Source string `json:"src"`
-	})
-
-	devices := []string{
-		"Linux; U; Android 10; Pixel 4",
-		"Linux; U; Android 10; Pixel 4 XL",
-		"Linux; U; Android 10; Pixel 4a",
-		"Linux; U; Android 10; Pixel 4a XL",
-		"Linux; U; Android 11; Pixel 4",
-		"Linux; U; Android 11; Pixel 4 XL",
-		"Linux; U; Android 11; Pixel 4a",
-		"Linux; U; Android 11; Pixel 4a XL",
-		"Linux; U; Android 11; Pixel 5",
-		"Linux; U; Android 11; Pixel 5a",
-		"Linux; U; Android 12; Pixel 4",
-		"Linux; U; Android 12; Pixel 4 XL",
-		"Linux; U; Android 12; Pixel 4a",
-		"Linux; U; Android 12; Pixel 4a XL",
-		"Linux; U; Android 12; Pixel 5",
-		"Linux; U; Android 12; Pixel 5a",
-		"Linux; U; Android 12; Pixel 6",
-		"Linux; U; Android 12; Pixel 6 Pro",
-	}
-
-	response, err := utils.Request(fmt.Sprintf("https://translate.google.com/translate_a/single?client=at&dt=t&dj=1&sl=%s&tl=%s&q=%s",
-		sourceLang, targetLang, url.QueryEscape(text)), utils.RequestParams{
-		Method: "POST",
-		Headers: map[string]string{
-			`User-Agent`:   fmt.Sprintf(`GoogleTranslate/6.28.0.05.421483610 (%s)`, devices[rand.Intn(len(devices))]),
-			`Content-Type`: `application/x-www-form-urlencoded;charset=utf-8`,
-		},
-	})
-
-	if err != nil {
-		slog.Error("Couldn't request translation",
-			"Error", err.Error())
-		return
-	}
-	defer response.Body.Close()
-
-	err = json.NewDecoder(response.Body).Decode(&translation)
-	if err != nil {
-		slog.Error("Couldn't unmarshal translation data",
-			"Error", err.Error())
-	}
-
-	var translations []string
-	for _, sentence := range translation.Sentences {
-		translations = append(translations, sentence.Trans)
-	}
-	textUnescaped, _ := (url.QueryUnescape(strings.Join(translations, "")))
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      fmt.Sprintf("<b>%s</b> -> <b>%s</b>\n<code>%s</code>", translation.Source, targetLang, textUnescaped),
-		ParseMode: models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
-}
-
-func getTranslateLang(text string, chat models.Chat) string {
-	languages := [135]string{
-		`af`, `sq`, `am`, `ar`, `hy`,
-		`as`, `ay`, `az`, `bm`, `eu`,
-		`be`, `bn`, `bho`, `bs`, `bg`,
-		`ca`, `ceb`, `zh`, `co`, `hr`,
-		`cs`, `da`, `dv`, `doi`, `nl`,
-		`en`, `eo`, `et`, `ee`, `fil`,
-		`fi`, `fr`, `fy`, `gl`, `ka`,
-		`de`, `el`, `gn`, `gu`, `ht`,
-		`ha`, `haw`, `he`, `iw`, `hi`,
-		`hmn`, `hu`, `is`, `ig`, `ilo`,
-		`id`, `ga`, `it`, `ja`, `jv`,
-		`jw`, `kn`, `kk`, `km`, `rw`,
-		`gom`, `ko`, `kri`, `ku`, `ckb`,
-		`ky`, `lo`, `la`, `lv`, `ln`,
-		`lt`, `lg`, `lb`, `mk`, `mai`,
-		`mg`, `ms`, `ml`, `mt`, `mi`,
-		`mr`, `mni`, `lus`, `mn`, `my`,
-		`ne`, `no`, `ny`, `or`, `om`,
-		`ps`, `fa`, `pl`, `pt`, `pa`,
-		`qu`, `ro`, `ru`, `sm`, `sa`,
-		`gd`, `nso`, `sr`, `st`, `sn`,
-		`sd`, `si`, `sk`, `sl`, `so`,
-		`es`, `su`, `sw`, `sv`, `tl`,
-		`tg`, `ta`, `tt`, `te`, `th`,
-		`ti`, `ts`, `tr`, `tk`, `ak`,
-		`uk`, `ur`, `ug`, `uz`, `vi`,
-		`cy`, `xh`, `yi`, `yo`, `zu`,
-	}
-	checkLang := func(item string) bool {
-		for _, s := range languages {
-			if s == item {
-				return true
-			}
-		}
-		return false
-	}
-
-	chatLang, err := localization.GetChatLanguage(chat)
-	if err != nil {
-		chatLang = "en"
-	}
-
-	if len(strings.Fields(text)) > 0 {
-		lang := strings.Fields(text)[0]
-		langParts := strings.Split(lang, "-")
-
-		if !checkLang(langParts[0]) {
-			lang = strings.Split(chatLang, "-")[0]
-		}
-
-		if len(langParts) > 1 && !checkLang(langParts[1]) {
-			lang = strings.Split(chatLang, "-")[0]
-		}
-
-		return lang
-	}
-	return "en"
-}
-
-const (
-	weatherAPIKey = "8de2d8b3a93542c9a2d8b3a935a2c909"
-)
+const weatherAPIKey = "8de2d8b3a93542c9a2d8b3a935a2c909"
 
 type weatherSearch struct {
 	Location struct {
@@ -220,79 +24,6 @@ type weatherSearch struct {
 		Longitude []float64 `json:"longitude"`
 		Address   []string  `json:"address"`
 	} `json:"location"`
-}
-
-func weatherHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	var weatherQuery string
-	i18n := localization.Get(update)
-
-	if len(strings.Fields(update.Message.Text)) > 1 {
-		weatherQuery = strings.Fields(update.Message.Text)[1]
-	} else {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      i18n("weather-no-location-provided"),
-			ParseMode: "HTML",
-			ReplyParameters: &models.ReplyParameters{
-				MessageID: update.Message.ID,
-			},
-		})
-		return
-	}
-
-	chatLang, err := localization.GetChatLanguage(update.Message.Chat)
-	if err != nil {
-		return
-	}
-
-	var weatherSearchData weatherSearch
-
-	response, err := utils.Request("https://api.weather.com/v3/location/search", utils.RequestParams{
-		Method: "GET",
-		Query: map[string]string{
-			"apiKey": weatherAPIKey,
-			"query":  weatherQuery,
-			"language": strings.Split(chatLang, "-")[0] +
-				"-" +
-				strings.ToUpper(strings.Split(chatLang, "-")[1]),
-			"format": "json",
-		},
-	})
-
-	if err != nil {
-		slog.Error("Couldn't request weather search",
-			"Error", err.Error())
-		return
-	}
-	defer response.Body.Close()
-
-	err = json.NewDecoder(response.Body).Decode(&weatherSearchData)
-	if err != nil {
-		return
-	}
-
-	buttons := make([][]models.InlineKeyboardButton, 0, len(database.AvailableLocales))
-	for i := 0; i < len(weatherSearchData.Location.Address) && i < 5; i++ {
-		buttons = append(buttons, []models.InlineKeyboardButton{{
-			Text: weatherSearchData.Location.Address[i],
-			CallbackData: fmt.Sprintf("_weather|%f|%f",
-				weatherSearchData.Location.Latitude[i],
-				weatherSearchData.Location.Longitude[i],
-			),
-		}})
-	}
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      i18n("weather-select-location"),
-		ParseMode: models.ParseModeHTML,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-		ReplyMarkup: &models.InlineKeyboardMarkup{
-			InlineKeyboard: buttons,
-		},
-	})
 }
 
 type weatherResult struct {
@@ -319,79 +50,253 @@ type weatherResult struct {
 	} `json:"v3-location-point"`
 }
 
-func callbackWeather(ctx context.Context, b *bot.Bot, update *models.Update) {
-	var weatherResultData weatherResult
+type googleResp struct {
+	Sentences []struct {
+		Trans string `json:"trans"`
+	} `json:"sentences"`
+	Source string `json:"src"`
+}
+
+func translateHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
+	chatID := update.Message.Chat.ID
+	msgID := update.Message.ID
 
-	chatLang, err := localization.GetChatLanguage(update.CallbackQuery.Message.Message.Chat)
-	if err != nil {
-		return
-	}
-	callbackData := strings.Split(update.CallbackQuery.Data, "|")
-
-	latitude, err := strconv.ParseFloat(callbackData[1], 64)
-	if err != nil {
-		return
-	}
-	longitude, err := strconv.ParseFloat(callbackData[2], 64)
-	if err != nil {
+	text := extractTranslateText(update.Message.Text, update.Message.ReplyToMessage)
+	if text == "" {
+		utils.SendMessage(ctx, b, chatID, msgID, i18n("translator-no-args-provided"))
 		return
 	}
 
-	response, err := utils.Request("https://api.weather.com/v3/aggcommon/v3-wx-observations-current;v3-location-point", utils.RequestParams{
+	lang := getTranslateLang(text, update.Message.Chat)
+	parts := strings.Fields(text)
+	if parts[0] == lang {
+		text = strings.TrimSpace(strings.TrimPrefix(text, lang))
+	}
+	if text == "" {
+		utils.SendMessage(ctx, b, chatID, msgID, i18n("translator-no-args-provided"))
+		return
+	}
+
+	src, dst := "auto", lang
+	if p := strings.Split(lang, "-"); len(p) > 1 {
+		src, dst = p[0], p[1]
+	}
+
+	translation, err := fetchGoogleTranslate(src, dst, text)
+	if err != nil {
+		slog.Error("translate failed", "error", err)
+		return
+	}
+
+	result := strings.Join(collectTranslations(translation), "")
+	unescaped, _ := url.QueryUnescape(result)
+	out := fmt.Sprintf("<b>%s</b> -> <b>%s</b>\n<code>%s</code>",
+		translation.Source, dst, unescaped)
+
+	utils.SendMessage(ctx, b, chatID, msgID, out)
+}
+
+func extractTranslateText(msgText string, reply *models.Message) string {
+	if reply != nil {
+		base := reply.Text
+		if base == "" {
+			base = reply.Caption
+		}
+		if len(msgText) > 4 {
+			return msgText[4:] + " " + base
+		}
+		return base
+	}
+	if strings.HasPrefix(msgText, "/tr ") {
+		return msgText[4:]
+	}
+	if strings.HasPrefix(msgText, "/translate ") {
+		return msgText[11:]
+	}
+	return ""
+}
+
+func getTranslateLang(text string, chat models.Chat) string {
+	langs := []string{"af", "sq", "am", "ar", "hy", "as", "ay", "az", "bm", "eu", "be", "bn", "bho", "bs", "bg", "ca", "ceb", "zh", "co", "hr", "cs", "da", "dv", "doi", "nl", "en", "eo", "et", "ee", "fil", "fi", "fr", "fy", "gl", "ka", "de", "el", "gn", "gu", "ht", "ha", "haw", "he", "iw", "hi", "hmn", "hu", "is", "ig", "ilo", "id", "ga", "it", "ja", "jv", "jw", "kn", "kk", "km", "rw", "gom", "ko", "kri", "ku", "ckb", "ky", "lo", "la", "lv", "ln", "lt", "lg", "lb", "mk", "mai", "mg", "ms", "ml", "mt", "mi", "mr", "mni", "lus", "mn", "my", "ne", "no", "ny", "or", "om", "ps", "fa", "pl", "pt", "pa", "qu", "ro", "ru", "sm", "sa", "gd", "nso", "sr", "st", "sn", "sd", "si", "sk", "sl", "so", "es", "su", "sw", "sv", "tl", "tg", "ta", "tt", "te", "th", "ti", "ts", "tr", "tk", "ak", "uk", "ur", "ug", "uz", "vi", "cy", "xh", "yi", "yo", "zu"}
+	check := func(s string) bool {
+		for _, v := range langs {
+			if v == s {
+				return true
+			}
+		}
+		return false
+	}
+
+	chatLang, err := localization.GetChatLanguage(chat)
+	if err != nil {
+		chatLang = "en"
+	}
+
+	parts := strings.Fields(text)
+	if len(parts) > 0 {
+		lang := parts[0]
+		p := strings.Split(lang, "-")
+		if !check(p[0]) {
+			lang = strings.Split(chatLang, "-")[0]
+		}
+		if len(p) > 1 && !check(p[1]) {
+			lang = strings.Split(chatLang, "-")[0]
+		}
+		return lang
+	}
+	return "en"
+}
+
+func fetchGoogleTranslate(src, dst, text string) (*googleResp, error) {
+	host := fmt.Sprintf(
+		"https://translate.google.com/translate_a/single?client=at&dt=t&dj=1&sl=%s&tl=%s&q=%s",
+		src, dst, url.QueryEscape(text),
+	)
+	devices := []string{"Linux; U; Android 10; Pixel 4", "Linux; U; Android 11; Pixel 5", "Linux; U; Android 12; Pixel 6"}
+
+	resp, err := utils.Request(host, utils.RequestParams{
+		Method:  "POST",
+		Headers: map[string]string{"User-Agent": fmt.Sprintf("GoogleTranslate/6.28.0 (%s)", devices[rand.Intn(len(devices))])},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var gr googleResp
+	if err := json.NewDecoder(resp.Body).Decode(&gr); err != nil {
+		return nil, err
+	}
+	return &gr, nil
+}
+
+func collectTranslations(gr *googleResp) []string {
+	out := make([]string, len(gr.Sentences))
+	for i, s := range gr.Sentences {
+		out[i] = s.Trans
+	}
+	return out
+}
+
+func weatherHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	i18n := localization.Get(update)
+	chatID, msgID := update.Message.Chat.ID, update.Message.ID
+
+	parts := strings.Fields(update.Message.Text)
+	if len(parts) < 2 {
+		utils.SendMessage(ctx, b, chatID, msgID, i18n("weather-no-location-provided"))
+		return
+	}
+	query := parts[1]
+
+	langTag, err := localization.GetChatLanguage(update.Message.Chat)
+	if err != nil {
+		langTag = "en-US"
+	}
+	langCode := formatLang(langTag)
+
+	resp, err := utils.Request("https://api.weather.com/v3/location/search", utils.RequestParams{
 		Method: "GET",
 		Query: map[string]string{
-			"apiKey":  weatherAPIKey,
-			"geocode": fmt.Sprintf("%.3f,%.3f", latitude, longitude),
-			"language": strings.Split(chatLang, "-")[0] +
-				"-" +
-				strings.ToUpper(strings.Split(chatLang, "-")[1]),
-			"units":  i18n("measurement-unit"),
-			"format": "json",
+			"apiKey":   weatherAPIKey,
+			"query":    query,
+			"language": langCode,
+			"format":   "json",
 		},
 	})
-
 	if err != nil {
-		slog.Error("Couldn't request weather data",
-			"Error", err.Error())
+		slog.Error("weather search failed", "error", err)
 		return
 	}
-	defer response.Body.Close()
+	defer resp.Body.Close()
 
-	err = json.NewDecoder(response.Body).Decode(&weatherResultData)
-	if err != nil {
+	var ws weatherSearch
+	if err := json.NewDecoder(resp.Body).Decode(&ws); err != nil {
+		slog.Error("weather decode failed", "error", err)
 		return
 	}
 
-	var localNameParts []string
-	if locale4 := weatherResultData.V3LocationPoint.Location.Locale.Locale4; locale4 != "" {
-		localNameParts = append(localNameParts, locale4)
+	var buttons [][]models.InlineKeyboardButton
+	for i := range ws.Location.Address {
+		if i >= 5 {
+			break
+		}
+		buttons = append(buttons, []models.InlineKeyboardButton{{
+			Text:         ws.Location.Address[i],
+			CallbackData: fmt.Sprintf("_weather|%f|%f", ws.Location.Latitude[i], ws.Location.Longitude[i]),
+		}})
 	}
 
-	if locale3, ok := weatherResultData.V3LocationPoint.Location.Locale.Locale3.(string); ok && locale3 != "" {
-		localNameParts = append(localNameParts, locale3)
+	utils.SendMessage(ctx, b, chatID, msgID, i18n("weather-select-location"),
+		utils.WithReplyMarkupSend(&models.InlineKeyboardMarkup{InlineKeyboard: buttons}),
+	)
+}
+
+func callbackWeather(ctx context.Context, b *bot.Bot, update *models.Update) {
+	i18n := localization.Get(update)
+	data := strings.Split(update.CallbackQuery.Data, "|")
+	lat, _ := strconv.ParseFloat(data[1], 64)
+	lon, _ := strconv.ParseFloat(data[2], 64)
+
+	langTag, err := localization.GetChatLanguage(update.CallbackQuery.Message.Message.Chat)
+	if err != nil {
+		langTag = "en-US"
+	}
+	langCode := formatLang(langTag)
+
+	resp, err := utils.Request(
+		"https://api.weather.com/v3/aggcommon/v3-wx-observations-current;v3-location-point",
+		utils.RequestParams{
+			Method: "GET",
+			Query: map[string]string{
+				"apiKey":   weatherAPIKey,
+				"geocode":  fmt.Sprintf("%.3f,%.3f", lat, lon),
+				"language": langCode,
+				"units":    i18n("measurement-unit"),
+				"format":   "json",
+			},
+		},
+	)
+	if err != nil {
+		slog.Error("weather details failed", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var wr weatherResult
+	if err := json.NewDecoder(resp.Body).Decode(&wr); err != nil {
+		slog.Error("weather details decode failed", "error", err)
+		return
 	}
 
-	localNameParts = append(localNameParts,
-		weatherResultData.V3LocationPoint.Location.City,
-		weatherResultData.V3LocationPoint.Location.AdminDistrict,
-		weatherResultData.V3LocationPoint.Location.Country)
+	parts := []string{wr.V3LocationPoint.Location.Locale.Locale4}
+	if v, ok := wr.V3LocationPoint.Location.Locale.Locale3.(string); ok && v != "" {
+		parts = append(parts, v)
+	}
+	parts = append(parts,
+		wr.V3LocationPoint.Location.City,
+		wr.V3LocationPoint.Location.AdminDistrict,
+		wr.V3LocationPoint.Location.Country,
+	)
+	localName := strings.Join(parts, ", ")
 
-	localName := strings.Join(localNameParts, ", ")
+	utils.EditMessage(ctx, b,
+		update.CallbackQuery.Message.Message.Chat.ID,
+		update.CallbackQuery.Message.Message.ID,
+		i18n("weather-details", map[string]any{
+			"localname":            localName,
+			"temperature":          wr.V3WxObservationsCurrent.Temperature,
+			"temperatureFeelsLike": wr.V3WxObservationsCurrent.TemperatureFeelsLike,
+			"relativeHumidity":     wr.V3WxObservationsCurrent.RelativeHumidity,
+			"windSpeed":            wr.V3WxObservationsCurrent.WindSpeed,
+		}),
+	)
+}
 
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text: i18n("weather-details",
-			map[string]interface{}{
-				"localname":            localName,
-				"temperature":          weatherResultData.V3WxObservationsCurrent.Temperature,
-				"temperatureFeelsLike": weatherResultData.V3WxObservationsCurrent.TemperatureFeelsLike,
-				"relativeHumidity":     weatherResultData.V3WxObservationsCurrent.RelativeHumidity,
-				"windSpeed":            weatherResultData.V3WxObservationsCurrent.WindSpeed,
-			}),
-		ParseMode: models.ParseModeHTML,
-	})
+func formatLang(tag string) string {
+	parts := strings.Split(tag, "-")
+	return parts[0] + "-" + strings.ToUpper(parts[1])
 }
 
 func Load(b *bot.Bot) {
