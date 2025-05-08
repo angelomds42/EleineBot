@@ -80,7 +80,7 @@ func checkAdminCallback(ctx context.Context, b *bot.Bot, cb *models.CallbackQuer
 	i18n := localization.Get(&models.Update{CallbackQuery: cb})
 	msg := cb.Message.Message
 	if !IsAdmin(ctx, b, msg.Chat.ID, cb.From.ID) {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("user-not-admin"))
+		utils.SendCallbackReply(ctx, b, cb.ID, i18n("user-not-admin"))
 		return false
 	}
 	return true
