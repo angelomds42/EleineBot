@@ -67,6 +67,43 @@ func parseUserAndDuration(msg *models.Message, i18n func(string, ...map[string]a
 	return userID, untilDate, ""
 }
 
+func checkUserAdmin(ctx context.Context, b *bot.Bot, msg *models.Message) bool {
+	i18n := localization.Get(&models.Update{Message: msg})
+	if !IsAdmin(ctx, b, msg.Chat.ID, msg.From.ID) {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("user-not-admin"))
+		return false
+	}
+	return true
+}
+
+func checkAdminCallback(ctx context.Context, b *bot.Bot, cb *models.CallbackQuery) bool {
+	i18n := localization.Get(&models.Update{CallbackQuery: cb})
+	msg := cb.Message.Message
+	if !IsAdmin(ctx, b, msg.Chat.ID, cb.From.ID) {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("user-not-admin"))
+		return false
+	}
+	return true
+}
+
+func checkBotAdmin(ctx context.Context, b *bot.Bot, msg *models.Message) bool {
+	i18n := localization.Get(&models.Update{Message: msg})
+	botID, err := utils.GetBotID(ctx, b)
+	if err != nil || (msg.Chat.Type != models.ChatTypePrivate && !IsAdmin(ctx, b, msg.Chat.ID, botID)) {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("bot-not-admin", nil))
+		return false
+	}
+	return true
+}
+
+func IsAdmin(ctx context.Context, b *bot.Bot, chatID int64, userID int64) bool {
+	member, err := b.GetChatMember(ctx, &bot.GetChatMemberParams{
+		ChatID: chatID,
+		UserID: userID,
+	})
+	return err == nil && (member.Type == models.ChatMemberTypeAdministrator || member.Type == models.ChatMemberTypeOwner)
+}
+
 func getUserName(msg *models.Message, userID int64) string {
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		return utils.EscapeHTML(msg.ReplyToMessage.From.FirstName)
@@ -103,6 +140,10 @@ func disableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		return false
 	}
 
+	if !checkUserAdmin(ctx, b, update.Message) {
+		return
+	}
+
 	if len(strings.Fields(update.Message.Text)) > 1 {
 		command := strings.Fields(update.Message.Text)[1]
 		if !contains(utils.DisableableCommands, command) {
@@ -133,6 +174,10 @@ func disableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 func enableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
+	if !checkUserAdmin(ctx, b, update.Message) {
+		return
+	}
+
 	if len(strings.Fields(update.Message.Text)) > 1 {
 		command := strings.Fields(update.Message.Text)[1]
 
@@ -158,6 +203,7 @@ func enableHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	text := i18n("disabled-commands")
+
 	commands, err := getDisabledCommands(update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("Error getting disabled commands", "error", err)
@@ -178,6 +224,10 @@ func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
+
+	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+		return
+	}
 
 	buttons := make([][]models.InlineKeyboardButton, 0, len(database.AvailableLocales))
 	for _, lang := range database.AvailableLocales {
@@ -209,6 +259,10 @@ func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update
 func setLanguageCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 	lang := strings.ReplaceAll(update.CallbackQuery.Data, "setLang ", "")
+
+	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+		return
+	}
 
 	dbQuery := "UPDATE groups SET language = ? WHERE id = ?;"
 	if update.CallbackQuery.Message.Message.Chat.Type == models.ChatTypePrivate {
@@ -289,6 +343,10 @@ func mediaConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 		return
 	}
 
+	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+		return
+	}
+
 	configType := strings.ReplaceAll(update.CallbackQuery.Data, "mediaConfig ", "")
 	if configType != "mediaConfig" {
 		query := fmt.Sprintf("UPDATE groups SET %s = ? WHERE id = ?;", configType)
@@ -344,6 +402,13 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
 
+	if !checkUserAdmin(ctx, b, msg) {
+		return
+	}
+	if !checkBotAdmin(ctx, b, msg) {
+		return
+	}
+
 	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
 	if errMsg != "" {
 		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, errMsg)
@@ -385,6 +450,13 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
+
+	if !checkUserAdmin(ctx, b, msg) {
+		return
+	}
+	if !checkBotAdmin(ctx, b, msg) {
+		return
+	}
 
 	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
 	if errMsg != "" {
@@ -436,6 +508,13 @@ func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
 	chatID := msg.Chat.ID
+
+	if !checkUserAdmin(ctx, b, msg) {
+		return
+	}
+	if !checkBotAdmin(ctx, b, msg) {
+		return
+	}
 
 	if msg.ReplyToMessage == nil {
 		utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-id-required"))

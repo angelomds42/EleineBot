@@ -304,3 +304,5 @@ ban-success-temp = O usuário <a>{ $userBanedFirstName }</a> foi banido até <co
 delete-msg-id-required = Você precisa responder a mensagem que deseja deletar.
 delete-msg-failed = Não foi possível excluir a mensagem. Bots só podem deletar mensagens com até 48 horas de envio.
 delete-msg-success = Mensagem deletada com sucesso.
+bot-not-admin = Preciso ser administrador para executar este comando.
+user-not-admin = Você não tem permissão para executar este comando.

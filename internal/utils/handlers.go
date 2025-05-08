@@ -236,3 +236,11 @@ func SendCallbackReply(
 		slog.Error("utils: SendCallbackReply failed", "callbackID", callbackID, "error", err)
 	}
 }
+
+func GetBotID(ctx context.Context, b *bot.Bot) (int64, error) {
+	me, err := b.GetMe(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return me.ID, nil
+}

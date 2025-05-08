@@ -306,3 +306,5 @@ ban-success-temp = User <a>{ $userBanedFirstName }</a> has been banned until <co
 delete-msg-id-required = You need to reply to the message you want to delete.
 delete-msg-failed = Could not delete the message. Bots can only delete messages sent within the last 48 hours.
 delete-msg-success = Message deleted successfully.
+bot-not-admin = I need to be an administrator to run this command.
+user-not-admin = You do not have permission to run this command.
