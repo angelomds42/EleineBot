@@ -17,6 +17,37 @@ import (
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
+func parseUser(msg *models.Message, i18n func(string, ...map[string]any) string) (userID int64, errMsg string) {
+	parts := strings.Fields(msg.Text)
+
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		return msg.ReplyToMessage.From.ID, ""
+	}
+
+	if len(parts) < 2 {
+		return 0, i18n("id-required")
+	}
+
+	arg := parts[1]
+	if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
+		return id, ""
+	}
+
+	for _, entity := range msg.Entities {
+		start := entity.Offset
+		length := entity.Length
+		if start+length > len(msg.Text) {
+			continue
+		}
+		entityText := msg.Text[start : start+length]
+		if entityText == arg && entity.Type == "text_mention" && entity.User != nil {
+			return entity.User.ID, ""
+		}
+	}
+
+	return 0, i18n("id-invalid")
+}
+
 func parseUserAndDuration(msg *models.Message, i18n func(string, ...map[string]any) string) (userID int64, untilDate int, errMsg string) {
 	parts := strings.Fields(msg.Text)
 
@@ -447,6 +478,41 @@ func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
 }
 
+func unbanUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	msg := update.Message
+	i18n := localization.Get(update)
+
+	if !checkUserAdmin(ctx, b, msg) {
+		return
+	}
+	if !checkBotAdmin(ctx, b, msg) {
+		return
+	}
+
+	userID, errMsg := parseUser(msg, i18n)
+	if errMsg != "" {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, errMsg)
+		return
+	}
+
+	params := &bot.UnbanChatMemberParams{
+		ChatID: msg.Chat.ID,
+		UserID: userID,
+	}
+	slog.Info("Unbanning user", "userID", userID, "chatID", msg.Chat.ID)
+
+	if _, err := b.UnbanChatMember(ctx, params); err != nil {
+		slog.Error("UnbanChatMember failed", "userID", userID, "error", err)
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unban-failed"))
+		return
+	}
+
+	respKey := "unban-success"
+	respData := map[string]interface{}{"userUnbannedFirstName": getUserName(msg, userID)}
+
+	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
+}
+
 func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
@@ -504,6 +570,46 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
 }
 
+func unmuteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	msg := update.Message
+	i18n := localization.Get(update)
+
+	if !checkUserAdmin(ctx, b, msg) {
+		return
+	}
+	if !checkBotAdmin(ctx, b, msg) {
+		return
+	}
+
+	userID, errMsg := parseUser(msg, i18n)
+	if errMsg != "" {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, strings.Replace(errMsg, "id", "unmute-id", 1))
+		return
+	}
+
+	chat, err := b.GetChat(ctx, &bot.GetChatParams{ChatID: msg.Chat.ID})
+	if err != nil {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unmute-failed"))
+		return
+	}
+
+	params := &bot.RestrictChatMemberParams{
+		ChatID:      msg.Chat.ID,
+		UserID:      userID,
+		Permissions: chat.Permissions,
+	}
+
+	if _, err := b.RestrictChatMember(ctx, params); err != nil {
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unmute-failed"))
+		return
+	}
+
+	respKey := "unmute-success"
+	respData := map[string]interface{}{"userUnmutedFirstName": getUserName(msg, userID)}
+
+	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
+}
+
 func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	i18n := localization.Get(update)
@@ -548,7 +654,9 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "disableable", bot.MatchTypeCommand, disableableHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, banUserHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "unban", bot.MatchTypeCommand, unbanUserHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "mute", bot.MatchTypeCommand, muteUserHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "unmute", bot.MatchTypeCommand, unmuteUserHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "del", bot.MatchTypeCommand, deleteMsgHandler)
 
 	utils.SaveHelp("moderation")
