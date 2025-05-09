@@ -11,91 +11,61 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/angelomds42/EleineBot/internal/database"
 	"github.com/angelomds42/EleineBot/internal/localization"
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
-func parseUser(msg *models.Message, i18n func(string, ...map[string]any) string) (userID int64, errMsg string) {
-	parts := strings.Fields(msg.Text)
-
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
-		return msg.ReplyToMessage.From.ID, ""
-	}
-
-	if len(parts) < 2 {
-		return 0, i18n("id-required")
-	}
-
-	arg := parts[1]
-	if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
-		return id, ""
-	}
-
-	for _, entity := range msg.Entities {
-		start := entity.Offset
-		length := entity.Length
-		if start+length > len(msg.Text) {
-			continue
-		}
-		entityText := msg.Text[start : start+length]
-		if entityText == arg && entity.Type == "text_mention" && entity.User != nil {
-			return entity.User.ID, ""
-		}
-	}
-
-	return 0, i18n("id-invalid")
-}
-
-func parseUserAndDuration(msg *models.Message, i18n func(string, ...map[string]any) string) (userID int64, untilDate int, errMsg string) {
+func parseUserRestriction(ctx context.Context, b *bot.Bot, msg *models.Message) (userID int64, until int, errMsg string) {
 	parts := strings.Fields(msg.Text)
 
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		userID = msg.ReplyToMessage.From.ID
 		if len(parts) >= 2 {
-			durStr := parts[1]
-			if dur, err := utils.ParseCustomDuration(durStr); err == nil {
-				untilDate = int(time.Now().Add(dur).Unix())
+			dur, err := utils.ParseCustomDuration(parts[1])
+			if err == nil {
+				until = int(time.Now().Add(dur).Unix())
 			}
 		}
-		return userID, untilDate, ""
+		return userID, until, ""
 	}
 
 	if len(parts) < 2 {
-		return 0, 0, i18n("id-required")
+		return 0, 0, "id-required"
 	}
 
 	arg := parts[1]
+
 	if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
 		userID = id
 	} else {
-		for _, entity := range msg.Entities {
-			start := entity.Offset
-			length := entity.Length
-			if start+length > len(msg.Text) {
-				continue
-			}
-			entityText := msg.Text[start : start+length]
-			if entityText == arg && entity.Type == "text_mention" && entity.User != nil {
-				userID = entity.User.ID
-				break
+		for _, ent := range msg.Entities {
+			if ent.Type == "text_mention" && ent.User != nil {
+				off := ent.Offset
+				ln := ent.Length
+				if off+ln <= len(msg.Text) && msg.Text[off:off+ln] == arg {
+					userID = ent.User.ID
+					break
+				}
 			}
 		}
 	}
 
 	if userID == 0 {
-		return 0, 0, i18n("id-invalid")
+		return 0, 0, "id-invalid"
 	}
 
 	if len(parts) >= 3 {
-		durStr := parts[2]
-		if dur, err := utils.ParseCustomDuration(durStr); err == nil {
-			untilDate = int(time.Now().Add(dur).Unix())
+		dur, err := utils.ParseCustomDuration(parts[2])
+		if err == nil {
+			until = int(time.Now().Add(dur).Unix())
 		}
 	}
 
-	return userID, untilDate, ""
+	return userID, until, ""
 }
 
 func checkUserAdmin(ctx context.Context, b *bot.Bot, msg *models.Message) bool {
@@ -429,107 +399,77 @@ func explainConfigCallback(ctx context.Context, b *bot.Bot, update *models.Updat
 	utils.SendCallbackReply(ctx, b, update.CallbackQuery.ID, i18n("ieConfig-"+ieConfig))
 }
 
-func banUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	msg := update.Message
-	i18n := localization.Get(update)
+type restrictionFunc func(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error
 
-	if !checkUserAdmin(ctx, b, msg) {
-		return
-	}
-	if !checkBotAdmin(ctx, b, msg) {
-		return
-	}
+func newRestrictionHandler(name string, action restrictionFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		msg := update.Message
+		i18n := localization.Get(update)
 
-	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
-	if errMsg != "" {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, errMsg)
-		return
-	}
+		if !checkUserAdmin(ctx, b, msg) || !checkBotAdmin(ctx, b, msg) {
+			return
+		}
 
+		userID, until, errMsg := parseUserRestriction(ctx, b, msg)
+		if errMsg != "" {
+			utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(name+"-id"))
+			return
+		}
+
+		if err := action(ctx, b, msg, userID, until); err != nil {
+			utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(name+"-failed"))
+			return
+		}
+
+		respKey := name + "-success"
+		pastAction, ok := map[string]string{"mute": "Muted", "unmute": "Unmuted", "ban": "Banned", "unban": "Unbanned", "delete": "Deleted"}[name]
+		if !ok {
+			pastAction = cases.Title(language.Und).String(name)
+		}
+		respData := map[string]interface{}{"user" + pastAction + "FirstName": getUserName(msg, userID)}
+		if until > 0 {
+			expr := name + "-success-temp"
+			respKey = expr
+			respData["untilDate"] = time.Unix(int64(until), 0).Format("02/01/2006 15:04")
+		}
+		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
+	}
+}
+
+func unmuteAction(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error {
+	chat, err := b.GetChat(ctx, &bot.GetChatParams{ChatID: msg.Chat.ID})
+	if err != nil {
+		return err
+	}
+	params := &bot.RestrictChatMemberParams{ChatID: msg.Chat.ID, UserID: userID, Permissions: chat.Permissions}
+	_, err = b.RestrictChatMember(ctx, params)
+	return err
+}
+
+func banAction(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error {
 	revoke := false
-	parts := strings.Fields(msg.Text)
-	if (msg.ReplyToMessage != nil && len(parts) >= 3 && strings.EqualFold(parts[2], "revoke")) ||
-		(msg.ReplyToMessage == nil && len(parts) >= 4 && strings.EqualFold(parts[3], "revoke")) {
-		revoke = true
+	params := &bot.BanChatMemberParams{ChatID: msg.Chat.ID, UserID: userID, RevokeMessages: revoke}
+	if until > 0 {
+		params.UntilDate = until
 	}
-
-	params := &bot.BanChatMemberParams{
-		ChatID:         msg.Chat.ID,
-		UserID:         userID,
-		RevokeMessages: revoke,
-	}
-	if untilDate > 0 {
-		params.UntilDate = untilDate
-	}
-
-	if _, err := b.BanChatMember(ctx, params); err != nil {
-		slog.Error("BanChatMember failed", "userID", userID, "error", err)
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("ban-failed"))
-		return
-	}
-
-	respKey := "ban-success"
-	respData := map[string]interface{}{"userBannedFirstName": getUserName(msg, userID)}
-	if untilDate > 0 {
-		respKey = "ban-success-temp"
-		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
-	}
-
-	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
+	_, err := b.BanChatMember(ctx, params)
+	return err
 }
 
-func unbanUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	msg := update.Message
-	i18n := localization.Get(update)
-
-	if !checkUserAdmin(ctx, b, msg) {
-		return
-	}
-	if !checkBotAdmin(ctx, b, msg) {
-		return
-	}
-
-	userID, errMsg := parseUser(msg, i18n)
-	if errMsg != "" {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, errMsg)
-		return
-	}
-
-	params := &bot.UnbanChatMemberParams{
-		ChatID: msg.Chat.ID,
-		UserID: userID,
-	}
-	slog.Info("Unbanning user", "userID", userID, "chatID", msg.Chat.ID)
-
-	if _, err := b.UnbanChatMember(ctx, params); err != nil {
-		slog.Error("UnbanChatMember failed", "userID", userID, "error", err)
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unban-failed"))
-		return
-	}
-
-	respKey := "unban-success"
-	respData := map[string]interface{}{"userUnbannedFirstName": getUserName(msg, userID)}
-
-	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
+func unbanAction(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error {
+	_, err := b.UnbanChatMember(ctx, &bot.UnbanChatMemberParams{ChatID: msg.Chat.ID, UserID: userID})
+	return err
 }
 
-func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	msg := update.Message
-	i18n := localization.Get(update)
-
-	if !checkUserAdmin(ctx, b, msg) {
-		return
+func deleteAction(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error {
+	if msg.ReplyToMessage == nil {
+		return fmt.Errorf("no reply message")
 	}
-	if !checkBotAdmin(ctx, b, msg) {
-		return
-	}
+	_, err := b.DeleteMessage(ctx, &bot.DeleteMessageParams{ChatID: msg.Chat.ID, MessageID: msg.ReplyToMessage.ID})
+	return err
+}
 
-	userID, untilDate, errMsg := parseUserAndDuration(msg, i18n)
-	if errMsg != "" {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, strings.Replace(errMsg, "id", "mute-id", 1))
-		return
-	}
-
+func muteAction(ctx context.Context, b *bot.Bot, msg *models.Message, userID int64, until int) error {
 	permissions := &models.ChatPermissions{
 		CanSendMessages:       false,
 		CanSendAudios:         false,
@@ -545,100 +485,13 @@ func muteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		CanInviteUsers:        false,
 		CanPinMessages:        false,
 	}
-
-	params := &bot.RestrictChatMemberParams{
-		ChatID:      msg.Chat.ID,
-		UserID:      userID,
-		Permissions: permissions,
+	params := &bot.RestrictChatMemberParams{ChatID: msg.Chat.ID, UserID: userID, Permissions: permissions}
+	if until > 0 {
+		params.UntilDate = until
 	}
-	if untilDate > 0 {
-		params.UntilDate = untilDate
-	}
+	_, err := b.RestrictChatMember(ctx, params)
+	return err
 
-	if _, err := b.RestrictChatMember(ctx, params); err != nil {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("mute-failed"))
-		return
-	}
-
-	respKey := "mute-success"
-	respData := map[string]interface{}{"userMutedFirstName": getUserName(msg, userID)}
-	if untilDate > 0 {
-		respKey = "mute-success-temp"
-		respData["untilDate"] = time.Unix(int64(untilDate), 0).Format("02/01/2006 15:04")
-	}
-
-	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
-}
-
-func unmuteUserHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	msg := update.Message
-	i18n := localization.Get(update)
-
-	if !checkUserAdmin(ctx, b, msg) {
-		return
-	}
-	if !checkBotAdmin(ctx, b, msg) {
-		return
-	}
-
-	userID, errMsg := parseUser(msg, i18n)
-	if errMsg != "" {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, strings.Replace(errMsg, "id", "unmute-id", 1))
-		return
-	}
-
-	chat, err := b.GetChat(ctx, &bot.GetChatParams{ChatID: msg.Chat.ID})
-	if err != nil {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unmute-failed"))
-		return
-	}
-
-	params := &bot.RestrictChatMemberParams{
-		ChatID:      msg.Chat.ID,
-		UserID:      userID,
-		Permissions: chat.Permissions,
-	}
-
-	if _, err := b.RestrictChatMember(ctx, params); err != nil {
-		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("unmute-failed"))
-		return
-	}
-
-	respKey := "unmute-success"
-	respData := map[string]interface{}{"userUnmutedFirstName": getUserName(msg, userID)}
-
-	utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(respKey, respData))
-}
-
-func deleteMsgHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	msg := update.Message
-	i18n := localization.Get(update)
-	chatID := msg.Chat.ID
-
-	if !checkUserAdmin(ctx, b, msg) {
-		return
-	}
-	if !checkBotAdmin(ctx, b, msg) {
-		return
-	}
-
-	if msg.ReplyToMessage == nil {
-		utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-id-required"))
-		return
-	}
-
-	params := &bot.DeleteMessageParams{
-		ChatID:    chatID,
-		MessageID: msg.ReplyToMessage.ID,
-	}
-
-	if _, err := b.DeleteMessage(ctx, params); err != nil {
-		slog.Error("DeleteMessage failed", "messageID", msg.ReplyToMessage.ID, "error", err)
-		utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-failed"))
-		return
-	}
-
-	utils.SendMessage(ctx, b, chatID, msg.ID, i18n("delete-msg-success"))
 }
 
 func Load(b *bot.Bot) {
@@ -653,11 +506,11 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "disabled", bot.MatchTypeCommand, disabledHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "disableable", bot.MatchTypeCommand, disableableHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "ieConfig", bot.MatchTypeExact, explainConfigCallback)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, banUserHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "unban", bot.MatchTypeCommand, unbanUserHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "mute", bot.MatchTypeCommand, muteUserHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "unmute", bot.MatchTypeCommand, unmuteUserHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "del", bot.MatchTypeCommand, deleteMsgHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "mute", bot.MatchTypeCommand, newRestrictionHandler("mute", muteAction))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "unmute", bot.MatchTypeCommand, newRestrictionHandler("unmute", unmuteAction))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "ban", bot.MatchTypeCommand, newRestrictionHandler("ban", banAction))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "unban", bot.MatchTypeCommand, newRestrictionHandler("unban", unbanAction))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "del", bot.MatchTypeCommand, newRestrictionHandler("delete", deleteAction))
 
 	utils.SaveHelp("moderation")
 }
