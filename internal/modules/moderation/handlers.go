@@ -512,5 +512,6 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "unban", bot.MatchTypeCommand, newRestrictionHandler("unban", unbanAction))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "del", bot.MatchTypeCommand, newRestrictionHandler("delete", deleteAction))
 
+	utils.DisableableCommands = append(utils.DisableableCommands, "ban", "unban", "mute", "unmute", "del")
 	utils.SaveHelp("moderation")
 }
