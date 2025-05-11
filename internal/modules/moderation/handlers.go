@@ -19,7 +19,7 @@ import (
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
-func parseUserRestriction(ctx context.Context, b *bot.Bot, msg *models.Message) (userID int64, until int, errMsg string) {
+func parseUserRestriction(msg *models.Message) (userID int64, until int, errMsg string) {
 	parts := strings.Fields(msg.Text)
 
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
@@ -410,7 +410,7 @@ func newRestrictionHandler(name string, action restrictionFunc) bot.HandlerFunc 
 			return
 		}
 
-		userID, until, errMsg := parseUserRestriction(ctx, b, msg)
+		userID, until, errMsg := parseUserRestriction(msg)
 		if errMsg != "" {
 			utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n(name+"-id"))
 			return
