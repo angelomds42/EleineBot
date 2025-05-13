@@ -90,11 +90,19 @@ func checkAdminCallback(ctx context.Context, b *bot.Bot, cb *models.CallbackQuer
 func checkBotAdmin(ctx context.Context, b *bot.Bot, msg *models.Message) bool {
 	i18n := localization.Get(&models.Update{Message: msg})
 	botID, err := utils.GetBotID(ctx, b)
-	if err != nil || (msg.Chat.Type != models.ChatTypePrivate && !IsAdmin(ctx, b, msg.Chat.ID, botID)) {
+	if err != nil || (!IsAdmin(ctx, b, msg.Chat.ID, botID)) {
 		utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("bot-not-admin", nil))
 		return false
 	}
 	return true
+}
+
+func checkPrivateChat(chat models.Chat) bool {
+	return chat.Type == models.ChatTypePrivate
+}
+
+func checkPrivateChatCallback(cb *models.CallbackQuery) bool {
+	return cb.Message.Message.Chat.Type == models.ChatTypePrivate
 }
 
 func IsAdmin(ctx context.Context, b *bot.Bot, chatID int64, userID int64) bool {
@@ -226,7 +234,7 @@ func disabledHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 func languageMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
-	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+	if !checkPrivateChatCallback(update.CallbackQuery) && !checkAdminCallback(ctx, b, update.CallbackQuery) {
 		return
 	}
 
@@ -261,7 +269,7 @@ func setLanguageCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 	i18n := localization.Get(update)
 	lang := strings.ReplaceAll(update.CallbackQuery.Data, "setLang ", "")
 
-	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+	if !checkPrivateChatCallback(update.CallbackQuery) && !checkAdminCallback(ctx, b, update.CallbackQuery) {
 		return
 	}
 
@@ -344,7 +352,7 @@ func mediaConfigCallback(ctx context.Context, b *bot.Bot, update *models.Update)
 		return
 	}
 
-	if !checkAdminCallback(ctx, b, update.CallbackQuery) {
+	if !checkPrivateChatCallback(update.CallbackQuery) && !checkAdminCallback(ctx, b, update.CallbackQuery) {
 		return
 	}
 
@@ -405,6 +413,11 @@ func newRestrictionHandler(name string, action restrictionFunc) bot.HandlerFunc 
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		msg := update.Message
 		i18n := localization.Get(update)
+
+		if checkPrivateChat(msg.Chat) {
+			utils.SendMessage(ctx, b, msg.Chat.ID, msg.ID, i18n("group-only"))
+			return
+		}
 
 		if !checkUserAdmin(ctx, b, msg) || !checkBotAdmin(ctx, b, msg) {
 			return

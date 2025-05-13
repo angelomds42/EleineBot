@@ -328,3 +328,4 @@ android-help = <b>Android:</b>
     <b> - nome:</b> Nome comercial (ex: <i>Redmi Note 11</i>).
     <b> - codinome:</b> Codenome do dispositivo (ex: <i>spes</i>).
     <b> - modelo:</b> Modelo do dispositivo (ex: <i>2201117TG</i>).
+group-only = Esse comando só pode ser usado em grupos.
