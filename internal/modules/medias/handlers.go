@@ -31,133 +31,144 @@ import (
 	"github.com/angelomds42/EleineBot/internal/utils"
 )
 
+var (
+	mediaRegex = regexp.MustCompile(regexMedia)
+	cmdRegex   = regexp.MustCompile(`^/(?:s)?dl`)
+	handlerMap = []struct {
+		pattern *regexp.Regexp
+		h       func(string) ([]models.InputMedia, []string)
+	}{
+		{regexp.MustCompile(`bsky\.app/`), bluesky.Handle},
+		{regexp.MustCompile(`instagram\.com/`), instagram.Handle},
+		{regexp.MustCompile(`reddit\.com/`), reddit.Handle},
+		{regexp.MustCompile(`threads\.net/`), threads.Handle},
+		{regexp.MustCompile(`tiktok\.com/`), tiktok.Handle},
+		{regexp.MustCompile(`(twitter|x)\.com/`), twitter.Handle},
+		{regexp.MustCompile(`(xiaohongshu|xhslink)\.com/`), xiaohongshu.Handle},
+	}
+	forceRe = regexp.MustCompile(`(tiktok\.com|reddit\.com)`)
+)
+
 const (
 	regexMedia     = `(?:http(?:s)?://)?(?:m|vm|vt|www|mobile)?(?:.)?(?:(?:instagram|twitter|x|tiktok|reddit|bsky|threads|xiaohongshu|xhslink)\.(?:com|net|app)|youtube\.com/shorts)/(?:\S*)`
 	maxSizeCaption = 1024
 )
 
 func mediaDownloadHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if !regexp.MustCompile(`^/(?:s)?dl`).MatchString(update.Message.Text) &&
-		update.Message.Chat.Type != models.ChatTypePrivate {
-		var mediasAuto bool
-		if err := database.DB.QueryRow(
-			"SELECT mediasAuto FROM groups WHERE id = ?;",
-			update.Message.Chat.ID,
-		).Scan(&mediasAuto); err != nil || !mediasAuto {
-			return
-		}
-	}
-
-	match := regexp.MustCompile(regexMedia).FindStringSubmatch(update.Message.Text)
-	i18n := localization.Get(update)
-	if len(match) == 0 {
-		utils.SendMessage(ctx, b,
-			update.Message.Chat.ID, update.Message.ID,
-			i18n("no-link-provided"),
-		)
+	text := update.Message.Text
+	if !shouldProcessMedia(update, text) {
 		return
 	}
-	link := match[0]
 
-	var (
-		mediaItems []models.InputMedia
-		result     []string
-		caption    string
-		forceSend  bool
-	)
-	handlers := map[string]func(string) ([]models.InputMedia, []string){
-		"bsky.app/":                  bluesky.Handle,
-		"instagram.com/":             instagram.Handle,
-		"reddit.com/":                reddit.Handle,
-		"threads.net/":               threads.Handle,
-		"tiktok.com/":                tiktok.Handle,
-		"(twitter|x).com/":           twitter.Handle,
-		"(xiaohongshu|xhslink).com/": xiaohongshu.Handle,
-	}
-	for pat, h := range handlers {
-		if ok, _ := regexp.MatchString(pat, update.Message.Text); ok {
-			if regexp.MustCompile(`(tiktok\.com|reddit\.com)`).MatchString(update.Message.Text) {
-				forceSend = true
-			}
-			mediaItems, result = h(link)
-			if len(result) >= 2 {
-				caption = result[0]
-			}
-			break
-		}
+	link := mediaRegex.FindString(text)
+	i18n := localization.Get(update)
+	if link == "" {
+		utils.SendMessage(ctx, b, update.Message.Chat.ID, update.Message.ID, i18n("no-link-provided"))
+		return
 	}
 
+	mediaItems, result := fetchMedia(link, text)
 	if len(mediaItems) == 0 || mediaItems[0] == nil {
 		return
 	}
 
-	if len(mediaItems) == 1 && !forceSend &&
-		update.Message.LinkPreviewOptions != nil &&
-		(update.Message.LinkPreviewOptions.IsDisabled == nil || !*update.Message.LinkPreviewOptions.IsDisabled) {
+	if skipPreview(mediaItems[0], update.Message.LinkPreviewOptions) {
+		return
+	}
 
-		var info struct{ Type, Media string }
-		raw, err := mediaItems[0].MarshalInputMedia()
-		if err == nil {
-			_ = json.Unmarshal(raw, &info)
-			if info.Type == "photo" {
-				return
+	mediaItems = limitItems(mediaItems, 10)
+	caption := buildCaption(result, link, update.Message.Chat.ID)
+	applyCaption(mediaItems[0], caption)
+
+	b.SendChatAction(ctx, &bot.SendChatActionParams{
+		ChatID: update.Message.Chat.ID,
+		Action: models.ChatActionUploadDocument,
+	})
+	replied, err := b.SendMediaGroup(ctx, &bot.SendMediaGroupParams{
+		ChatID:          update.Message.Chat.ID,
+		Media:           mediaItems,
+		ReplyParameters: &models.ReplyParameters{MessageID: update.Message.ID},
+	})
+	if err != nil {
+		return
+	}
+	_ = downloader.SetMediaCache(replied, result)
+}
+
+func shouldProcessMedia(update *models.Update, text string) bool {
+	if cmdRegex.MatchString(text) || update.Message.Chat.Type == models.ChatTypePrivate {
+		return true
+	}
+	var mediasAuto bool
+	err := database.DB.QueryRow(
+		"SELECT mediasAuto FROM groups WHERE id = ?;", update.Message.Chat.ID,
+	).Scan(&mediasAuto)
+	return err == nil && mediasAuto
+}
+
+func fetchMedia(link, text string) ([]models.InputMedia, []string) {
+	for _, h := range handlerMap {
+		if h.pattern.MatchString(text) {
+			force := forceRe.MatchString(text)
+			items, result := h.h(link)
+			if force || len(result) >= 2 {
+				return items, result
 			}
 		}
 	}
+	return nil, nil
+}
 
-	if len(mediaItems) > 10 {
-		mediaItems = mediaItems[:10]
+func skipPreview(item models.InputMedia, opts *models.LinkPreviewOptions) bool {
+	if opts == nil || (opts.IsDisabled != nil && *opts.IsDisabled) {
+		return false
 	}
+	raw, _ := item.MarshalInputMedia()
+	var info struct{ Type, Media string }
+	_ = json.Unmarshal(raw, &info)
+	return info.Type == "photo"
+}
 
+func limitItems(items []models.InputMedia, limit int) []models.InputMedia {
+	if len(items) > limit {
+		return items[:limit]
+	}
+	return items
+}
+
+func buildCaption(result []string, link string, chatID int64) string {
+	caption := ""
+	if len(result) >= 2 {
+		caption = result[0]
+	}
 	if utf8.RuneCountInString(caption) > maxSizeCaption {
 		caption = downloader.TruncateUTF8Caption(caption, link)
 	}
-
-	var mediasCaption bool
+	var showCaption bool
 	if err := database.DB.QueryRow(
-		"SELECT mediasCaption FROM groups WHERE id = ?;",
-		update.Message.Chat.ID,
-	).Scan(&mediasCaption); err == nil && !mediasCaption {
+		"SELECT mediasCaption FROM groups WHERE id = ?;", chatID,
+	).Scan(&showCaption); err == nil && !showCaption {
 		caption = ""
 	}
 	if caption == "" {
 		caption = fmt.Sprintf("<a href='%s'>🔗 Link</a>", link)
 	}
+	return caption
+}
 
-	first := mediaItems[0]
-	raw, _ := first.MarshalInputMedia()
+func applyCaption(item models.InputMedia, caption string) {
+	raw, _ := item.MarshalInputMedia()
 	var info struct{ Type, Media string }
 	_ = json.Unmarshal(raw, &info)
 	switch info.Type {
 	case "photo":
-		m := first.(*models.InputMediaPhoto)
+		m := item.(*models.InputMediaPhoto)
 		m.Caption = caption
 		m.ParseMode = models.ParseModeHTML
 	case "video":
-		m := first.(*models.InputMediaVideo)
+		m := item.(*models.InputMediaVideo)
 		m.Caption = caption
 		m.ParseMode = models.ParseModeHTML
-	}
-
-	// 10) envia ação de chat
-	b.SendChatAction(ctx, &bot.SendChatActionParams{
-		ChatID: update.Message.Chat.ID,
-		Action: models.ChatActionUploadDocument,
-	})
-
-	replied, err := b.SendMediaGroup(ctx, &bot.SendMediaGroupParams{
-		ChatID: update.Message.Chat.ID,
-		Media:  mediaItems,
-		ReplyParameters: &models.ReplyParameters{
-			MessageID: update.Message.ID,
-		},
-	})
-	if err != nil {
-		return
-	}
-
-	if err := downloader.SetMediaCache(replied, result); err != nil {
-		slog.Error("Couldn't set media cache", "error", err)
 	}
 }
 
@@ -347,7 +358,7 @@ func partsToInt(s string) int {
 }
 
 func Load(b *bot.Bot) {
-	b.RegisterHandlerRegexp(bot.HandlerTypeMessageText, regexp.MustCompile(regexMedia), mediaDownloadHandler)
+	b.RegisterHandlerRegexp(bot.HandlerTypeMessageText, mediaRegex, mediaDownloadHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "ytdl", bot.MatchTypeCommand, youtubeDownloadHandler)
 	b.RegisterHandlerRegexp(bot.HandlerTypeCallbackQueryData, regexp.MustCompile(`^(_(vid|aud))`), youtubeDownloadCallback)
 
