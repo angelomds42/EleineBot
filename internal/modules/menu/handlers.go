@@ -151,6 +151,16 @@ func aboutYourDataCallback(ctx context.Context, b *bot.Bot, update *models.Updat
 	utils.EditMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkup(markup))
 }
 
+func helpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	i18n := localization.Get(update)
+
+	chatID := update.Message.Chat.ID
+	msgID := update.Message.ID
+	text := i18n("help")
+	markup := &models.InlineKeyboardMarkup{InlineKeyboard: utils.GetHelpKeyboard(i18n)}
+	utils.SendMessage(ctx, b, chatID, msgID, text, utils.WithReplyMarkupSend(markup))
+}
+
 func helpMenuCallback(ctx context.Context, b *bot.Bot, update *models.Update) {
 	i18n := localization.Get(update)
 
@@ -185,4 +195,5 @@ func Load(b *bot.Bot) {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "aboutYourData", bot.MatchTypeExact, aboutYourDataCallback)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "helpMenu", bot.MatchTypeExact, helpMenuCallback)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "helpMessage", bot.MatchTypePrefix, helpMessageCallback)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "help", bot.MatchTypeCommand, helpHandler)
 }
